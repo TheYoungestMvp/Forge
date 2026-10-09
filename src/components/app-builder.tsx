@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import {
   generationEventSchema,
+  type AppVersion,
   type GeneratedApp,
 } from "@/lib/generation/schema";
 import { composePreview } from "@/lib/preview/compose";
@@ -60,6 +61,7 @@ type Preview = {
   srcDoc: string;
   token: string;
   model: string;
+  versionNumber: number;
 };
 
 export function AppBuilder() {
@@ -70,6 +72,7 @@ export function AppBuilder() {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [lastPrompt, setLastPrompt] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
+  const [versions, setVersions] = useState<AppVersion[]>([]);
   const [previewReady, setPreviewReady] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -82,7 +85,7 @@ export function AppBuilder() {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const nextMessageId = useRef(1);
-  const inputDisabled = isRunning || Boolean(preview);
+  const inputDisabled = isRunning;
 
   useEffect(
     () => () => {
@@ -172,7 +175,10 @@ export function AppBuilder() {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: content }),
+        body: JSON.stringify({
+          prompt: content,
+          ...(preview ? { currentApp: preview.app } : {}),
+        }),
         signal: controller.signal,
       });
       if (!response.ok) {
@@ -212,6 +218,17 @@ export function AppBuilder() {
         if (event.type === "status") setActiveStep(event.step);
         if (event.type === "error") throw new Error(event.message);
         if (event.type === "complete") {
+          const parentVersion = versions.at(-1);
+          const version: AppVersion = {
+            id: crypto.randomUUID(),
+            number: versions.length + 1,
+            parentId: parentVersion?.id ?? null,
+            createdAt: new Date().toISOString(),
+            prompt: content,
+            model: event.model,
+            app: event.app,
+          };
+          setVersions((previous) => [...previous, version]);
           const token = crypto.randomUUID();
           previewTokenRef.current = token;
           previewSettledRef.current = false;
@@ -222,11 +239,12 @@ export function AppBuilder() {
             srcDoc: composePreview(event.app, token),
             token,
             model: event.model,
+            versionNumber: version.number,
           });
           setActiveStep(4);
           appendMessage(
             "assistant",
-            `${event.app.title} is ready. Try its controls in Preview. Start a new app to generate another independent application.`,
+            `v${version.number} of ${event.app.title} is ready${parentVersion ? `, updated from v${parentVersion.number}` : ""}. Try its controls in Preview, or describe what you'd like to change next.`,
           );
           completed = true;
         }
@@ -275,6 +293,7 @@ export function AppBuilder() {
     previewTokenRef.current = null;
     previewSettledRef.current = false;
     setPreview(null);
+    setVersions([]);
     setPreviewReady(false);
     setPreviewError(null);
     setGenerationError(null);
@@ -321,6 +340,7 @@ export function AppBuilder() {
             <button
               type="button"
               className="new-app-button"
+              disabled={isRunning}
               onClick={startNewApp}
             >
               <Plus size={12} /> New app
@@ -387,7 +407,7 @@ export function AppBuilder() {
               <p>
                 Describe your idea. I&apos;ll help bring it to life,
                 <br className="desktop-break" />
-                from a single description.
+                then refine it step by step.
               </p>
               <div className="welcome-tags">
                 <span>
@@ -449,7 +469,9 @@ export function AppBuilder() {
                 <span>
                   <WandSparkles size={13} />
                   {isRunning
-                    ? "Bringing your idea to life"
+                    ? preview
+                      ? "Updating your application"
+                      : "Bringing your idea to life"
                     : generationError
                       ? "Generation failed"
                       : preview
@@ -457,14 +479,21 @@ export function AppBuilder() {
                         : "Ready when you are"}
                 </span>
                 <span className="progress-caption">
-                  {preview ? "AI generated" : "First generation"}
+                  {preview
+                    ? isRunning
+                      ? `Creating v${versions.length + 1}`
+                      : `v${preview.versionNumber}`
+                    : "First generation"}
                 </span>
               </div>
               <ol>
                 {steps.map((label, index) => {
                   const done =
                     index < activeStep ||
-                    (Boolean(preview) && index === activeStep);
+                    (activeStep === 4 &&
+                      index === 4 &&
+                      !isRunning &&
+                      !generationError);
                   const current = isRunning && index === activeStep;
                   const failed =
                     Boolean(generationError) && index === activeStep;
@@ -529,12 +558,19 @@ export function AppBuilder() {
             }}
           >
             <div className="prompt-suggestions">
-              <span>
-                {preview ? "First generation complete" : "Try an idea"}
-              </span>
+              <span>{preview ? "Keep building" : "Try an idea"}</span>
               {preview ? (
-                <button type="button" onClick={startNewApp}>
-                  Start a new app <ChevronRight size={11} />
+                <button
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => {
+                    setPrompt(
+                      "Change this app to dark mode. Preserve all existing functionality.",
+                    );
+                    promptRef.current?.focus();
+                  }}
+                >
+                  Try dark mode <ChevronRight size={11} />
                 </button>
               ) : (
                 examples.map((example) => (
@@ -565,7 +601,7 @@ export function AppBuilder() {
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder={
                   preview
-                    ? "Start a new app to generate another application."
+                    ? "What would you like to change in this app?"
                     : "What would you like to build?"
                 }
                 rows={3}
@@ -660,6 +696,27 @@ export function AppBuilder() {
               </button>
             </div>
           </div>
+          {versions.length > 0 && (
+            <div className="version-strip" aria-label="Generated versions">
+              <span>Versions</span>
+              <ol>
+                {versions.map((version) => (
+                  <li
+                    key={version.id}
+                    aria-current={
+                      version.number === preview?.versionNumber
+                        ? "true"
+                        : undefined
+                    }
+                    title={version.prompt}
+                  >
+                    v{version.number}
+                    {version.number === preview?.versionNumber && " · Latest"}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           {previewError && (
             <div className="preview-error" role="alert">
               <AlertCircle size={14} />
@@ -730,12 +787,14 @@ export function AppBuilder() {
           <div className="preview-statusbar">
             <span>
               <span className="status-dot" />
-              {previewError
-                ? "Runtime error"
-                : previewReady
-                  ? "Preview running"
-                  : isRunning
-                    ? "Generating application"
+              {isRunning
+                ? preview
+                  ? "Updating application"
+                  : "Generating application"
+                : previewError
+                  ? "Runtime error"
+                  : previewReady
+                    ? `Preview running · v${preview?.versionNumber}`
                     : preview
                       ? "Loading preview"
                       : "Waiting for an idea"}
@@ -753,7 +812,7 @@ export function AppBuilder() {
       <footer className="app-footer">
         <span>From a spark to something real.</span>
         <span>
-          Phase 2 <span aria-hidden="true">·</span> AI app generation
+          Phase 3 <span aria-hidden="true">·</span> Build and refine
           <span className="footer-diamond">✧</span>
         </span>
       </footer>

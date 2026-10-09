@@ -5,6 +5,7 @@ import {
 } from "@/lib/generation/errors";
 import {
   generateRequestSchema,
+  type GenerateRequest,
   type GenerationEvent,
 } from "@/lib/generation/schema";
 import { validateGeneratedApp } from "@/lib/generation/validate";
@@ -13,7 +14,7 @@ export const runtime = "nodejs";
 export const maxDuration = 150;
 
 export async function POST(request: Request) {
-  let prompt: string;
+  let generationRequest: GenerateRequest;
   let provider: ReturnType<typeof createAppGeneratorProvider>;
   let timeoutMs: number;
   try {
@@ -34,10 +35,11 @@ export async function POST(request: Request) {
         415,
       );
     const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 24576)
+    // Includes JSON escaping for an existing app capped at 128 KiB of source.
+    if (new TextEncoder().encode(raw).byteLength > 1024 * 1024)
       throw new GenerationError(
         "INVALID_REQUEST",
-        "The prompt request is too large.",
+        "The generation request is too large.",
         413,
       );
     let data;
@@ -54,10 +56,23 @@ export async function POST(request: Request) {
     if (!result.success)
       throw new GenerationError(
         "INVALID_REQUEST",
-        "Provide only a prompt containing 1–4000 characters.",
+        "Provide a prompt containing 1–4000 characters and, for modifications, a complete currentApp with title, html, css and javascript.",
         400,
       );
-    prompt = result.data.prompt;
+    generationRequest = result.data;
+    if (generationRequest.currentApp) {
+      try {
+        generationRequest.currentApp = validateGeneratedApp(
+          JSON.stringify(generationRequest.currentApp),
+        );
+      } catch {
+        throw new GenerationError(
+          "INVALID_CURRENT_APP",
+          "The existing application is invalid or exceeds the supported code limits. Start a new app or use a valid generated version.",
+          400,
+        );
+      }
+    }
     provider = createAppGeneratorProvider();
     timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS || 120000);
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000)
@@ -93,7 +108,7 @@ export async function POST(request: Request) {
         send({ type: "status", step: 0 });
         send({ type: "status", step: 1 });
         send({ type: "status", step: 2 });
-        const raw = await provider.generate(prompt, signal);
+        const raw = await provider.generate(generationRequest, signal);
         if (signal.aborted) throw new Error("Aborted");
         send({ type: "status", step: 3 });
         const app = validateGeneratedApp(raw);

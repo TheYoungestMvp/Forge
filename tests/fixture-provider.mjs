@@ -25,8 +25,15 @@ http
         "css",
         "javascript",
       ]);
-      assert.equal(data.messages.length, 2);
-      const prompt = data.messages[1].content;
+      assert([2, 3].includes(data.messages.length));
+      if (data.messages.length === 3) {
+        assert.equal(data.messages[1].role, "assistant");
+        assert.deepEqual(
+          Object.keys(JSON.parse(data.messages[1].content)).sort(),
+          ["css", "html", "javascript", "title"],
+        );
+      }
+      const prompt = data.messages.at(-1).content;
       if (prompt === "provider-auth-error") {
         response.writeHead(401).end();
         return;

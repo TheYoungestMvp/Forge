@@ -1,6 +1,6 @@
-# Forge — Phase 2 AI App Generation
+# Forge — Phase 3 Build and Refine
 
-A runnable App Builder using Next.js App Router, TypeScript and Tailwind CSS. A real model produces validated HTML/CSS/JavaScript, which runs in an isolated iframe.
+A runnable App Builder using Next.js App Router, TypeScript and Tailwind CSS. A real model creates and modifies validated HTML/CSS/JavaScript, which runs in an isolated iframe. Each successful generation adds a complete version in client state.
 
 ## Run locally
 
@@ -41,20 +41,29 @@ npm start
 - Observe real server stages. Understanding/Planning prepare and constrain the generation request; there is one model call, not a separate planning model or fabricated thought stream.
 - Switch the preview between Desktop and Mobile.
 - Use the generated app's controls. Reload Preview to reset its in-memory state.
-- After success, use New app to create an independent app; editing the current app is intentionally disabled.
+- After success, describe a modification in the same composer. The latest generated app is supplied as context, and Preview switches to the complete updated app after validation.
+- Try Todo → "Change the app to dark mode" → "Add a filter for unfinished tasks". Chat retains all user/assistant messages, and the version row shows v1, v2 and v3.
+- The current app remains usable while an update is generating. An unsuccessful update keeps the last successful app and version; use Retry generation or send a revised prompt.
+- Use New app to clear this session and start an independent application.
 - Missing configuration, provider failures, invalid output and timeouts show an error with Retry generation.
 - Runtime JavaScript errors show a Preview error without crashing the parent workspace.
 - On narrow screens, switch between Agent Chat and Preview using the workspace tabs.
 
 ## Phase boundaries
 
-Only initial generation is implemented. Requests contain only the new prompt, never previous code or chat. Each new application starts from scratch. Project, chat, generated code and app interaction data live in browser memory; refreshing the page resets them.
+Initial generation and follow-up modifications are implemented. A modification sends the new prompt and the latest complete app code. Prior chat is displayed locally; it is not sent to the provider because the current app already contains the accumulated changes. The provider is instructed to preserve existing features and return a complete replacement, never a diff.
 
-No database, follow-up editing, version history, generated backend, dependency installation or shell execution is implemented. PRD.md and ARCHITECTURE.md describe future scope, not all completed functionality.
+Every successful generation appends an immutable version object: `{ id, number, parentId, createdAt, prompt, model, app }`. v1 has no parent; each modification points to the previous successful version. Failed generations do not create a version. The version row is informational; historical version restoration is not implemented in this phase.
+
+Project, chat, versions and app interaction data live in browser memory; refreshing the page or choosing New app resets them. Applying a new version or reloading Preview restarts the generated app's in-memory data; this phase preserves code functionality, not running task data.
+
+No database, generated backend, dependency installation or shell execution is implemented. PRD.md and ARCHITECTURE.md describe future scope, not all completed functionality.
 
 ## Generate API
 
-POST `/api/generate`, Content-Type application/json, body `{ "prompt": "..." }`. Prompt must contain 1–4000 characters; extra request fields are rejected. Request/config errors return `{ "error": { "code", "message" } }` with an HTTP error status.
+POST `/api/generate`, Content-Type application/json. Initial body: `{ "prompt": "..." }`. Modification body: `{ "prompt": "...", "currentApp": { "title": "...", "html": "...", "css": "...", "javascript": "..." } }`.
+
+Prompt must contain 1–4000 characters; extra request fields are rejected. Existing code passes the same schema, syntax, resource, sandbox-compatibility and UTF-8 size checks as model output before reaching the provider. The total encoded request is capped at 1 MiB to allow escaped source context. Request/config errors return `{ "error": { "code", "message" } }` with an HTTP error status.
 
 Accepted requests return application/x-ndjson. Each line is one event:
 
@@ -89,3 +98,5 @@ Status steps are 0–3; a stream terminates with either complete or error, not b
 - `src/lib/preview/compose.ts`: isolated srcDoc wrapper.
 
 Real-model Todo, Calculator and Habit Tracker interactive acceptance passed with deepseek-flash. Detailed checks and fixes are recorded in PHASE2_TEST_RESULTS.md.
+
+Phase 3 continuous modification acceptance is recorded in PHASE3_TEST_RESULTS.md. `npm test` runs validation, context-forwarding and API replacement checks without credentials.

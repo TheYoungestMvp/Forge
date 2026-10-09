@@ -32,7 +32,20 @@ export const appJsonSchema = {
 
 export const generateRequestSchema = z.strictObject({
   prompt: z.string().trim().min(1).max(4000),
+  currentApp: generatedAppSchema.optional(),
 });
+
+export type GenerateRequest = z.infer<typeof generateRequestSchema>;
+
+export type AppVersion = {
+  id: string;
+  number: number;
+  parentId: string | null;
+  createdAt: string;
+  prompt: string;
+  model: string;
+  app: GeneratedApp;
+};
 
 export const generationEventSchema = z.discriminatedUnion("type", [
   z.strictObject({
