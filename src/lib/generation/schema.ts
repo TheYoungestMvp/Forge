@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { messageSchema, savedGenerationSchema } from "@/lib/projects/schema";
 
 const code = z.string().max(65536);
 
@@ -33,6 +34,9 @@ export const appJsonSchema = {
 export const generateRequestSchema = z.strictObject({
   prompt: z.string().trim().min(1).max(4000),
   currentApp: generatedAppSchema.optional(),
+  projectId: z.uuid().optional(),
+  requestId: z.uuid().optional(),
+  baseVersionId: z.uuid().nullable().optional(),
 });
 
 export type GenerateRequest = z.infer<typeof generateRequestSchema>;
@@ -50,12 +54,15 @@ export type AppVersion = {
 export const generationEventSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("status"),
-    step: z.number().int().min(0).max(3),
+    step: z.number().int().min(0).max(4),
   }),
   z.strictObject({
     type: z.literal("complete"),
-    app: generatedAppSchema,
-    model: z.string().max(200),
+    saved: savedGenerationSchema,
+  }),
+  z.strictObject({
+    type: z.literal("message"),
+    message: messageSchema,
   }),
   z.strictObject({
     type: z.literal("error"),

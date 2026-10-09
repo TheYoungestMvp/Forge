@@ -23,6 +23,120 @@
   --space-region: 32px;
 }
 
+.project-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-block: 14px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.project-picker,
+.project-create {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.project-picker label {
+  color: var(--text-secondary);
+  font-size: var(--type-control);
+  white-space: nowrap;
+}
+.project-toolbar input,
+.project-toolbar select {
+  font: inherit;
+  font-size: var(--type-control);
+  color: var(--ink);
+  background: white;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 0;
+  max-width: 260px;
+}
+.project-toolbar input {
+  width: 210px;
+}
+.project-toolbar select {
+  width: 230px;
+}
+.project-toolbar input::placeholder {
+  color: var(--text-muted);
+}
+.project-toolbar input:focus-visible,
+.project-toolbar select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.storage-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 14px 16px;
+  background: #fff9f6;
+  color: var(--text-error);
+  border: 1px solid #ecd5ce;
+  border-radius: 8px;
+  font-size: var(--type-control);
+}
+.storage-error > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.storage-error > div {
+  flex: 1;
+  min-width: 0;
+}
+.storage-error p {
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+}
+.storage-error button {
+  padding: 6px 10px;
+  background: white;
+  border: 1px solid #ecd5ce;
+  border-radius: 6px;
+  color: inherit;
+  flex-shrink: 0;
+}
+.project-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: var(--type-control);
+}
+@media (max-width: 800px) {
+  .project-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .project-picker select {
+    flex: 1;
+    width: 0;
+    max-width: none;
+  }
+  .project-create input {
+    flex: 1;
+    width: 0;
+    max-width: none;
+    font-size: 16px;
+  }
+  .project-create button {
+    min-height: 40px;
+  }
+  .storage-error {
+    flex-wrap: wrap;
+  }
+  .storage-error button {
+    margin-left: 30px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

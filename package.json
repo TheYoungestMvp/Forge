@@ -8,9 +8,10 @@
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write src tests",
-    "test": "tsx --conditions=react-server --test tests/generation.test.ts"
+    "test": "tsx --conditions=react-server --test tests/generation.test.ts tests/persistence.test.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
     "acorn": "^8.19.0",
     "lucide-react": "^1.53.0",
     "next": "^16.4.0",

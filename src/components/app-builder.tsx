@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { z } from "zod";
 import {
   AlertCircle,
   ArrowRight,
@@ -30,12 +31,20 @@ import {
   type GeneratedApp,
 } from "@/lib/generation/schema";
 import { composePreview } from "@/lib/preview/compose";
+import {
+  projectSchema,
+  projectSnapshotSchema,
+  toAppVersion,
+  type Project,
+  type ProjectMessage,
+} from "@/lib/projects/schema";
 
 const steps = [
   "Understanding requirements",
   "Planning application",
   "Generating code",
   "Validating application",
+  "Saving version",
   "Completed",
 ];
 const examples = [
@@ -55,7 +64,12 @@ const examples = [
       "Build a minimal habit tracker with adding and deleting habits, marking habits completed today and showing progress.",
   },
 ];
-type Message = { id: number; role: "user" | "assistant"; content: string };
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  saved: boolean;
+};
 type Preview = {
   app: GeneratedApp;
   srcDoc: string;
@@ -63,6 +77,24 @@ type Preview = {
   model: string;
   versionNumber: number;
 };
+
+async function projectJson(response: Response) {
+  const body = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new Error(
+      typeof body?.error?.message === "string"
+        ? body.error.message
+        : "Project storage could not complete the request. Please retry.",
+    );
+  return body;
+}
+
+function projectUrl(id: string | null, replace = false) {
+  const url = new URL(window.location.href);
+  if (id) url.searchParams.set("project", id);
+  else url.searchParams.delete("project");
+  window.history[replace ? "replaceState" : "pushState"](null, "", url);
+}
 
 function ExampleArtwork({ kind }: { kind: string }) {
   return (
@@ -120,6 +152,11 @@ export function AppBuilder() {
   const [lastPrompt, setLastPrompt] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [versions, setVersions] = useState<AppVersion[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [projectLoading, setProjectLoading] = useState(true);
+  const [storageError, setStorageError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -132,11 +169,141 @@ export function AppBuilder() {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const followChatRef = useRef(true);
   const promptRef = useRef<HTMLTextAreaElement>(null);
-  const nextMessageId = useRef(1);
-  const inputDisabled = isRunning;
-  const hasStarted = messages.length > 0;
+  const projectRequestRef = useRef<AbortController | null>(null);
+  const loadTargetRef = useRef<string | null>(null);
+  const lastAttemptRef = useRef<{
+    id: string;
+    projectId: string;
+    prompt: string;
+    baseVersionId: string | null;
+  } | null>(null);
+  const inputDisabled = isRunning || projectLoading;
+  const hasStarted = messages.length > 0 || Boolean(preview);
   const workHeadingRef = useRef<HTMLHeadingElement>(null);
   const wasStartedRef = useRef(false);
+
+  const showVersion = useCallback((version: AppVersion) => {
+    const token = crypto.randomUUID();
+    previewTokenRef.current = token;
+    previewSettledRef.current = false;
+    setPreviewReady(false);
+    setPreviewError(null);
+    setPreview({
+      app: version.app,
+      srcDoc: composePreview(version.app, token),
+      token,
+      model: version.model,
+      versionNumber: version.number,
+    });
+  }, []);
+
+  const clearWorkspace = useCallback(() => {
+    followChatRef.current = true;
+    previewTokenRef.current = null;
+    previewSettledRef.current = false;
+    lastAttemptRef.current = null;
+    setPreview(null);
+    setVersions([]);
+    setPreviewReady(false);
+    setPreviewError(null);
+    setGenerationError(null);
+    setActiveStep(-1);
+    setMessages([]);
+    setPrompt("");
+    setLastPrompt("");
+    setWorkspaceTab("chat");
+  }, []);
+
+  const loadWorkspace = useCallback(
+    async (id: string | null) => {
+      projectRequestRef.current?.abort();
+      const controller = new AbortController();
+      projectRequestRef.current = controller;
+      loadTargetRef.current = id;
+      setProjectLoading(true);
+      setStorageError(null);
+      try {
+        const list = z
+          .array(projectSchema)
+          .parse(
+            await projectJson(
+              await fetch("/api/projects", {
+                cache: "no-store",
+                signal: controller.signal,
+              }),
+            ),
+          );
+        if (controller.signal.aborted) return;
+        setProjects(list);
+        if (id) {
+          const snapshot = projectSnapshotSchema.parse(
+            await projectJson(
+              await fetch(`/api/projects/${encodeURIComponent(id)}`, {
+                cache: "no-store",
+                signal: controller.signal,
+              }),
+            ),
+          );
+          if (controller.signal.aborted) return;
+          clearWorkspace();
+          setProject(snapshot.project);
+          setMessages(
+            snapshot.messages.map((message) => ({
+              id: message.id,
+              role: message.role,
+              content: message.content,
+              saved: true,
+            })),
+          );
+          const storedVersions = snapshot.versions.map(toAppVersion);
+          setVersions(storedVersions);
+          const latest = storedVersions.at(-1);
+          if (latest) {
+            showVersion(latest);
+            setActiveStep(5);
+          }
+          const lastUser = snapshot.messages.findLast(
+            (message) => message.role === "user",
+          );
+          if (lastUser) setLastPrompt(lastUser.content);
+          projectUrl(id, true);
+        } else {
+          clearWorkspace();
+          setProject(null);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted)
+          setStorageError(
+            error instanceof Error
+              ? error.message
+              : "Could not load your project. Please retry.",
+          );
+      } finally {
+        if (projectRequestRef.current === controller) {
+          projectRequestRef.current = null;
+          setProjectLoading(false);
+        }
+      }
+    },
+    [clearWorkspace, showVersion],
+  );
+
+  useEffect(() => {
+    const load = () => {
+      requestRef.current?.abort();
+      requestRef.current = null;
+      setIsRunning(false);
+      void loadWorkspace(
+        new URL(window.location.href).searchParams.get("project"),
+      );
+    };
+    load();
+    window.addEventListener("popstate", load);
+    return () => {
+      window.removeEventListener("popstate", load);
+      projectRequestRef.current?.abort();
+    };
+  }, [loadWorkspace]);
 
   useEffect(() => {
     if (hasStarted && !wasStartedRef.current) workHeadingRef.current?.focus();
@@ -200,12 +367,67 @@ export function AppBuilder() {
     }
   }, [messages, isRunning, generationError, activeStep, workspaceTab]);
 
-  function appendMessage(role: Message["role"], content: string) {
-    const id = nextMessageId.current++;
-    setMessages((previous) => [...previous, { id, role, content }]);
+  function mergeMessage(message: ProjectMessage) {
+    const next: Message = {
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      saved: true,
+    };
+    setMessages((previous) =>
+      previous.some((item) => item.id === next.id)
+        ? previous.map((item) => (item.id === next.id ? next : item))
+        : [...previous, next],
+    );
   }
 
-  async function submitPrompt(value = prompt) {
+  async function createProjectRecord(signal?: AbortSignal) {
+    return projectSchema.parse(
+      await projectJson(
+        await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: projectName.trim() || "Untitled project",
+          }),
+          signal,
+        }),
+      ),
+    );
+  }
+
+  async function createNamedProject() {
+    if (isRunning || projectLoading || projectRequestRef.current) return;
+    const controller = new AbortController();
+    projectRequestRef.current = controller;
+    setProjectLoading(true);
+    setStorageError(null);
+    try {
+      const created = await createProjectRecord(controller.signal);
+      if (controller.signal.aborted) return;
+      clearWorkspace();
+      setProject(created);
+      setProjects((previous) => [created, ...previous]);
+      setProjectName("");
+      projectUrl(created.id);
+      loadTargetRef.current = created.id;
+      promptRef.current?.focus();
+    } catch (error) {
+      if (!controller.signal.aborted)
+        setStorageError(
+          error instanceof Error
+            ? error.message
+            : "Could not create the project. Please retry.",
+        );
+    } finally {
+      if (projectRequestRef.current === controller) {
+        projectRequestRef.current = null;
+        setProjectLoading(false);
+      }
+    }
+  }
+
+  async function submitPrompt(value = prompt, retry = false) {
     const content = value.trim();
     if (
       !content ||
@@ -218,25 +440,65 @@ export function AppBuilder() {
     followChatRef.current = true;
     requestRef.current = controller;
     const timer = setTimeout(() => controller.abort(), 140000);
-    appendMessage("user", content);
-    setLastPrompt(content);
-    setPrompt("");
     setGenerationError(null);
+    setStorageError(null);
     setActiveStep(0);
     setIsRunning(true);
     let completed = false;
+    let failureSaved = false;
+    let errorCode = "";
+    let attempt: typeof lastAttemptRef.current = null;
     try {
+      const currentProject =
+        project || (await createProjectRecord(controller.signal));
+      if (requestRef.current !== controller) return;
+      if (!project) {
+        setProject(currentProject);
+        setProjects((previous) => [currentProject, ...previous]);
+        setProjectName("");
+        projectUrl(currentProject.id, true);
+        loadTargetRef.current = currentProject.id;
+      }
+      attempt =
+        retry &&
+        lastAttemptRef.current?.projectId === currentProject.id &&
+        lastAttemptRef.current.prompt === content
+          ? lastAttemptRef.current
+          : {
+              id: crypto.randomUUID(),
+              projectId: currentProject.id,
+              prompt: content,
+              baseVersionId: versions.at(-1)?.id ?? null,
+            };
+      lastAttemptRef.current = attempt;
+      const userMessage: Message = {
+        id: attempt.id,
+        role: "user",
+        content,
+        saved: false,
+      };
+      setMessages((previous) =>
+        previous.some((item) => item.id === userMessage.id)
+          ? previous
+          : [...previous, userMessage],
+      );
+      setLastPrompt(content);
+      setPrompt("");
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: content,
-          ...(preview ? { currentApp: preview.app } : {}),
+          projectId: currentProject.id,
+          requestId: attempt.id,
+          baseVersionId: attempt.baseVersionId,
         }),
         signal: controller.signal,
       });
       if (!response.ok) {
         const failure = await response.json().catch(() => null);
+        errorCode =
+          typeof failure?.error?.code === "string" ? failure.error.code : "";
         throw new Error(
           typeof failure?.error?.message === "string"
             ? failure.error.message
@@ -269,37 +531,32 @@ export function AppBuilder() {
             "The server returned an invalid generation response.",
           );
         const event = result.data;
+        if (requestRef.current !== controller) return;
         if (event.type === "status") setActiveStep(event.step);
-        if (event.type === "error") throw new Error(event.message);
+        if (event.type === "message") {
+          mergeMessage(event.message);
+          if (event.message.role === "assistant") failureSaved = true;
+        }
+        if (event.type === "error") {
+          errorCode = event.code;
+          throw new Error(event.message);
+        }
         if (event.type === "complete") {
-          const parentVersion = versions.at(-1);
-          const version: AppVersion = {
-            id: crypto.randomUUID(),
-            number: versions.length + 1,
-            parentId: parentVersion?.id ?? null,
-            createdAt: new Date().toISOString(),
-            prompt: content,
-            model: event.model,
-            app: event.app,
-          };
-          setVersions((previous) => [...previous, version]);
-          const token = crypto.randomUUID();
-          previewTokenRef.current = token;
-          previewSettledRef.current = false;
-          setPreviewReady(false);
-          setPreviewError(null);
-          setPreview({
-            app: event.app,
-            srcDoc: composePreview(event.app, token),
-            token,
-            model: event.model,
-            versionNumber: version.number,
-          });
-          setActiveStep(4);
-          appendMessage(
-            "assistant",
-            `v${version.number} of ${event.app.title} is ready${parentVersion ? `, updated from v${parentVersion.number}` : ""}. Try its controls in Preview, or describe what you'd like to change next.`,
+          const version = toAppVersion(event.saved.version);
+          setVersions((previous) =>
+            [
+              ...previous.filter((item) => item.id !== version.id),
+              version,
+            ].sort((a, b) => a.number - b.number),
           );
+          setProject(event.saved.project);
+          setProjects((previous) => [
+            event.saved.project,
+            ...previous.filter((item) => item.id !== event.saved.project.id),
+          ]);
+          mergeMessage(event.saved.message);
+          showVersion(version);
+          setActiveStep(5);
           completed = true;
         }
       }
@@ -328,35 +585,46 @@ export function AppBuilder() {
         await reader.cancel().catch(() => {});
       }
     } catch (error) {
+      if (requestRef.current !== controller) return;
       const message = controller.signal.aborted
         ? "The generation request was interrupted or timed out. Please retry."
         : error instanceof Error
           ? error.message
           : "Generation failed. Please try again.";
       setGenerationError(message);
-      appendMessage("assistant", message);
+      if (
+        !attempt ||
+        errorCode.startsWith("DATABASE_") ||
+        ["PROJECT_CHANGED", "PROJECT_NOT_FOUND"].includes(errorCode)
+      )
+        setStorageError(message);
+      if (attempt && !failureSaved)
+        setMessages((previous) => [
+          ...previous,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: message,
+            saved: false,
+          },
+        ]);
     } finally {
       clearTimeout(timer);
-      requestRef.current = null;
-      setIsRunning(false);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setIsRunning(false);
+      }
     }
   }
 
   function startNewApp() {
-    if (isRunning) return;
-    followChatRef.current = true;
-    previewTokenRef.current = null;
-    previewSettledRef.current = false;
-    setPreview(null);
-    setVersions([]);
-    setPreviewReady(false);
-    setPreviewError(null);
-    setGenerationError(null);
-    setActiveStep(-1);
-    setMessages([]);
-    setPrompt("");
-    setLastPrompt("");
-    setWorkspaceTab("chat");
+    if (isRunning || projectLoading) return;
+    clearWorkspace();
+    setProject(null);
+    setProjectName("");
+    setStorageError(null);
+    loadTargetRef.current = null;
+    projectUrl(null);
   }
 
   function reloadPreview() {
@@ -371,7 +639,7 @@ export function AppBuilder() {
       {steps.map((label, index) => {
         const done =
           index < activeStep ||
-          (activeStep === 4 && index === 4 && !isRunning && !generationError);
+          (activeStep === 5 && index === 5 && !isRunning && !generationError);
         const current = isRunning && index === activeStep;
         const failed = Boolean(generationError) && index === activeStep;
         return (
@@ -401,7 +669,7 @@ export function AppBuilder() {
             </span>
             <span>{label}</span>
             {current && <span className="step-working">Working</span>}
-            {index === 4 && done && (
+            {index === 5 && done && (
               <span className="step-working">Ready to explore</span>
             )}
           </li>
@@ -428,26 +696,32 @@ export function AppBuilder() {
           <span className="project-icon">
             <Compass size={15} />
           </span>
-          <span
-            className="project-name"
-            title={preview?.app.title || "Untitled project"}
-          >
-            {preview?.app.title || "Untitled project"}
+          <span className="project-name" title={project?.name || "New project"}>
+            {project?.name || "New project"}
           </span>
           <span className="project-label">Project</span>
         </div>
         <div className="header-right">
           <span className="workspace-note">
-            <span className="status-dot" /> Session only · resets on refresh
+            <span className="status-dot" />
+            {projectLoading
+              ? "Loading projects…"
+              : isRunning
+                ? "Saving as you build"
+                : storageError
+                  ? "Storage unavailable"
+                  : project
+                    ? "Saved to Supabase"
+                    : "Ready to create"}
           </span>
-          {hasStarted && (
+          {(hasStarted || project) && (
             <button
               type="button"
               className="new-app-button"
-              disabled={isRunning}
+              disabled={inputDisabled}
               onClick={startNewApp}
             >
-              <Plus size={12} /> New app
+              <Plus size={12} /> New project
             </button>
           )}
           <span className="avatar" aria-label="Demo user">
@@ -455,6 +729,93 @@ export function AppBuilder() {
           </span>
         </div>
       </header>
+      <div className="project-toolbar" aria-label="Project controls">
+        <div className="project-picker">
+          <label htmlFor="saved-project">Open project</label>
+          <select
+            id="saved-project"
+            value={project?.id || ""}
+            disabled={inputDisabled}
+            onChange={(event) => {
+              const id = event.target.value;
+              if (!id) {
+                startNewApp();
+                return;
+              }
+              projectUrl(id);
+              void loadWorkspace(id);
+            }}
+          >
+            <option value="">Choose a saved project</option>
+            {projects.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Reload projects"
+            disabled={inputDisabled}
+            onClick={() =>
+              void loadWorkspace(project?.id || loadTargetRef.current)
+            }
+          >
+            <RotateCcw size={15} />
+          </button>
+        </div>
+        <form
+          className="project-create"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createNamedProject();
+          }}
+        >
+          <label htmlFor="project-name" className="sr-only">
+            New project name
+          </label>
+          <input
+            id="project-name"
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+            maxLength={120}
+            placeholder="Name a new project"
+            disabled={inputDisabled}
+          />
+          <button
+            type="submit"
+            className="new-app-button"
+            disabled={inputDisabled}
+          >
+            <Plus size={14} /> Create project
+          </button>
+        </form>
+      </div>
+      {storageError && (
+        <div className="storage-error" role="alert">
+          <AlertCircle size={18} />
+          <div>
+            <strong>Project storage needs attention</strong>
+            <p>{storageError}</p>
+          </div>
+          <button
+            type="button"
+            disabled={inputDisabled}
+            onClick={() =>
+              void loadWorkspace(loadTargetRef.current || project?.id || null)
+            }
+          >
+            Retry loading
+          </button>
+        </div>
+      )}
+      {projectLoading && (
+        <p className="project-loading" role="status">
+          <LoaderCircle size={16} className="animate-spin" /> Loading saved
+          projects and conversation…
+        </p>
+      )}
       {hasStarted && (
         <div className="workspace-topline">
           <div>
@@ -557,6 +918,11 @@ export function AppBuilder() {
                       {message.role === "assistant" && (
                         <span className="message-label">AI</span>
                       )}
+                      {!message.saved && (
+                        <span className="message-label">
+                          {isRunning ? "Saving…" : "Not saved"}
+                        </span>
+                      )}
                     </div>
                     <p>{message.content}</p>
                   </article>
@@ -630,7 +996,7 @@ export function AppBuilder() {
                     <button
                       type="button"
                       disabled={isRunning}
-                      onClick={() => void submitPrompt(lastPrompt)}
+                      onClick={() => void submitPrompt(lastPrompt, true)}
                     >
                       Retry generation
                     </button>
@@ -916,7 +1282,7 @@ export function AppBuilder() {
       <footer className="app-footer">
         <span>From a spark to something real.</span>
         <span>
-          Phase 3 <span aria-hidden="true">·</span> Build and refine
+          Phase 4 <span aria-hidden="true">·</span> Saved projects
           <span className="footer-diamond">✧</span>
         </span>
       </footer>

@@ -202,7 +202,7 @@ test("modification API rejects unsafe, oversized or partial context before conta
   }
 });
 
-test("provider passes exact latest code as context and API returns complete validated replacements", async () => {
+test("provider passes exact latest code as context and returns complete validated replacements", async () => {
   const keys = [
     "LLM_PROVIDER",
     "LLM_BASE_URL",
@@ -263,27 +263,11 @@ test("provider passes exact latest code as context and API returns complete vali
     assert.equal(outgoing[0].messages[2].content, "Change to dark mode");
 
     reply = filteredApp;
-    const response = await POST(
-      new Request("http://localhost:3000/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: "Add unfinished filter",
-          currentApp: darkApp,
-        }),
-      }),
+    const updated = await provider.generate(
+      { prompt: "Add unfinished filter", currentApp: darkApp },
+      new AbortController().signal,
     );
-    const events = (await response.text())
-      .trim()
-      .split("\n")
-      .map((line) => JSON.parse(line));
-    assert.deepEqual(
-      events
-        .filter((event) => event.type === "status")
-        .map((event) => event.step),
-      [0, 1, 2, 3],
-    );
-    assert.deepEqual(events.at(-1).app, filteredApp);
+    assert.deepEqual(validateGeneratedApp(updated), filteredApp);
     assert.deepEqual(JSON.parse(outgoing[1].messages[1].content), darkApp);
     assert.equal(outgoing[1].messages[2].content, "Add unfinished filter");
 
