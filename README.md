@@ -1,4 +1,4 @@
-# Forge — Phase 4 Saved Projects
+# Forge — Phase 5 Version History
 
 A runnable App Builder using Next.js App Router, TypeScript and Tailwind CSS. A real model creates and modifies validated HTML/CSS/JavaScript, which runs in an isolated iframe. Supabase stores projects, conversation history and complete generated versions.
 
@@ -65,6 +65,10 @@ npm start
 - Try Todo → "Change the app to dark mode" → "Add a filter for unfinished tasks". Chat retains all user/assistant messages, and the version row shows v1, v2 and v3.
 - The current app remains usable while an update is generating. An unsuccessful update keeps the last successful app and version; use Retry generation or send a revised prompt.
 - Refresh the project URL to recover the saved conversation, versions and latest Preview. You can also open it from the project picker in a fresh browser session.
+- Expand Version History to see versions newest first, their full prompts and creation times in your browser's local timezone. Click a version to run that exact saved app in Preview.
+- Historical Preview shows which version is being viewed and which one is latest. Use Return to latest to resume editing, or Restore to make the historical code current.
+- Restore copies the selected code into a new saved version. For example, restoring v1 when v3 is latest creates v4; v1, v2 and v3 remain unchanged. The next AI modification uses v4 as its context.
+- Restore does not call the model. A failed restore keeps the existing Preview and history and offers Retry restore.
 - Use New project to start an independent application; previously saved projects remain in the picker.
 - Database configuration, missing tables and connection problems show a storage error with Retry loading. A failed save keeps the previous successful Preview and never marks an unsaved result as a completed version.
 - Missing configuration, provider failures, invalid output and timeouts show an error with Retry generation.
@@ -73,17 +77,35 @@ npm start
 
 ## Phase boundaries
 
-Initial generation, follow-up modifications and project persistence are implemented. The server reads the latest complete app code from Supabase for a modification. Prior chat is stored and displayed; it is not sent to the provider because the current app already contains the accumulated changes. The provider is instructed to preserve existing features and return a complete replacement, never a diff.
+Initial generation, follow-up modifications, project persistence, historical Preview and Restore are implemented. The server reads the latest complete app code from Supabase for a modification. Prior chat is stored and displayed; it is not sent to the provider because the current app already contains the accumulated changes. The provider is instructed to preserve existing features and return a complete replacement, never a diff.
 
-Every successfully saved generation appends an immutable version object: `{ id, number, parentId, createdAt, prompt, model, app }`. v1 has no parent; each modification points to the previous successful version. Failed generations do not create a version. The version row is informational; historical version restoration is not implemented in this phase.
+Every successfully saved generation appends an immutable version object: `{ id, number, parentId, createdAt, prompt, model, app }`. v1 has no parent; each modification points to the previous successful version. Failed generations do not create a version. Version History displays all saved versions, their complete prompts and creation times.
+
+Selecting a historical version changes Preview only. Prompt submission is disabled while viewing an old version, so changes are made against the app the user sees: Return to latest or Restore first. Restore appends an exact copy with a new ID, time, sequential number and `Restore vN` prompt. Its parent is the previous latest version. The original model attribution is retained; restoration itself does not use a model. A user restore action and assistant reply are saved to Chat.
 
 Project metadata, messages and generated source versions survive refresh. Generated app interaction data (for example, tasks entered in Preview) remains in iframe memory. Applying a new version or reloading the page/Preview restarts that app's runtime data.
 
-No generated backend, runtime dependency installation, shell execution, authentication or historical version restoration is implemented. PRD.md and ARCHITECTURE.md describe the full MVP scope, not all completed functionality.
+No generated backend, runtime dependency installation, shell execution, authentication, Git diff, branches or merges are implemented. PRD.md and ARCHITECTURE.md describe the full MVP scope, not all completed functionality.
 
 The required columns are stored in `projects`, `messages` and `versions`. Small additional fields preserve existing version metadata and reliable ordering: `request_id`/`seq` on messages and `version_number`/`parent_id`/`model` on versions. A completed request retried with the same ID returns its saved result without generating another version. A stale base version returns 409, so another browser's newer version is not silently overwritten.
 
 User messages are saved before the model call. The `forge_save_generation` SQL function commits the generated version, assistant response and project metadata in one transaction. The app emits a completion event only after that transaction succeeds. When generation fails, its error response is also saved as an assistant message when the database is available.
+
+Phase 5 reuses that transaction for restoration and needs no additional SQL migration. The server scopes the source version to the requested project and validates stored code before copying it. Restore request IDs make retries idempotent, and a stale base version returns 409. The restore intent is saved before its version transaction; if a transaction fails, no new version is returned, and a retry can finish the same request.
+
+## Restore API
+
+POST `/api/projects/{projectId}/restore`, Content-Type application/json:
+
+```json
+{
+  "versionId": "historical-version-uuid",
+  "requestId": "new-restore-request-uuid",
+  "baseVersionId": "latest-version-uuid"
+}
+```
+
+Returns `{ project, version, message, userMessage }` only after saving. No source is accepted from the browser. Missing/cross-project versions return 404, unsafe stored code returns 422, conflicting request IDs or stale heads return 409, and unavailable storage returns 503. Retrying a completed request returns the same saved version. Historical Preview performs no database write.
 
 ## Generate API
 
@@ -133,7 +155,7 @@ Status steps are 0–4 (understanding, planning, generating, validating, saving)
 - `src/app/globals.css`: Tailwind import and responsive workspace styling.
 - `src/components/app-builder.tsx`: Chat, streaming generation status, errors and preview controls.
 - `src/app/api/generate/route.ts`: unified generation API.
-- `src/app/api/projects/`: create/list/load project routes.
+- `src/app/api/projects/`: create/list/load project routes and the Restore endpoint.
 - `src/lib/projects/`: persisted record schemas and the small server-only Supabase helper.
 - `supabase/migrations/001_persistence.sql`: tables, permissions and atomic generation save.
 - `src/lib/ai/provider.ts`: configured model adapter.
@@ -143,3 +165,5 @@ Status steps are 0–4 (understanding, planning, generating, validating, saving)
 Real-model Todo, Calculator and Habit Tracker interactive acceptance passed with deepseek-flash. Detailed checks and fixes are recorded in PHASE2_TEST_RESULTS.md.
 
 Phase 3 continuous modification acceptance is recorded in PHASE3_TEST_RESULTS.md. `npm test` runs validation, stored-context forwarding, persistence API and save-failure checks without credentials. Phase 4 reload acceptance is recorded in PHASE4_TEST_RESULTS.md.
+
+Phase 5 historical Preview, Restore and continued modification acceptance is recorded in PHASE5_TEST_RESULTS.md.

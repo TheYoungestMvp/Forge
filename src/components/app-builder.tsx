@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Circle,
   Compass,
+  History,
   Layers2,
   LoaderCircle,
   MessageSquare,
@@ -34,6 +35,7 @@ import { composePreview } from "@/lib/preview/compose";
 import {
   projectSchema,
   projectSnapshotSchema,
+  restoredVersionSchema,
   toAppVersion,
   type Project,
   type ProjectMessage,
@@ -71,12 +73,26 @@ type Message = {
   saved: boolean;
 };
 type Preview = {
+  versionId: string;
   app: GeneratedApp;
   srcDoc: string;
   token: string;
   model: string;
   versionNumber: number;
 };
+
+function versionTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown time";
+  return new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
 
 async function projectJson(response: Response) {
   const body = await response.json().catch(() => null);
@@ -157,6 +173,11 @@ export function AppBuilder() {
   const [projectName, setProjectName] = useState("");
   const [projectLoading, setProjectLoading] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(
+    null,
+  );
+  const isRestoring = restoringVersionId !== null;
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -177,7 +198,18 @@ export function AppBuilder() {
     prompt: string;
     baseVersionId: string | null;
   } | null>(null);
-  const inputDisabled = isRunning || projectLoading;
+  const restoreAttemptRef = useRef<{
+    id: string;
+    projectId: string;
+    versionId: string;
+    baseVersionId: string;
+  } | null>(null);
+  const inputDisabled = isRunning || isRestoring || projectLoading;
+  const latestVersion = versions.at(-1);
+  const isHistorical = Boolean(
+    preview && latestVersion && preview.versionId !== latestVersion.id,
+  );
+  const generationDisabled = inputDisabled || isHistorical;
   const hasStarted = messages.length > 0 || Boolean(preview);
   const workHeadingRef = useRef<HTMLHeadingElement>(null);
   const wasStartedRef = useRef(false);
@@ -189,6 +221,7 @@ export function AppBuilder() {
     setPreviewReady(false);
     setPreviewError(null);
     setPreview({
+      versionId: version.id,
       app: version.app,
       srcDoc: composePreview(version.app, token),
       token,
@@ -202,6 +235,8 @@ export function AppBuilder() {
     previewTokenRef.current = null;
     previewSettledRef.current = false;
     lastAttemptRef.current = null;
+    restoreAttemptRef.current = null;
+    setRestoreError(null);
     setPreview(null);
     setVersions([]);
     setPreviewReady(false);
@@ -223,16 +258,14 @@ export function AppBuilder() {
       setProjectLoading(true);
       setStorageError(null);
       try {
-        const list = z
-          .array(projectSchema)
-          .parse(
-            await projectJson(
-              await fetch("/api/projects", {
-                cache: "no-store",
-                signal: controller.signal,
-              }),
-            ),
-          );
+        const list = z.array(projectSchema).parse(
+          await projectJson(
+            await fetch("/api/projects", {
+              cache: "no-store",
+              signal: controller.signal,
+            }),
+          ),
+        );
         if (controller.signal.aborted) return;
         setProjects(list);
         if (id) {
@@ -293,6 +326,7 @@ export function AppBuilder() {
       requestRef.current?.abort();
       requestRef.current = null;
       setIsRunning(false);
+      setRestoringVersionId(null);
       void loadWorkspace(
         new URL(window.location.href).searchParams.get("project"),
       );
@@ -397,7 +431,7 @@ export function AppBuilder() {
   }
 
   async function createNamedProject() {
-    if (isRunning || projectLoading || projectRequestRef.current) return;
+    if (inputDisabled || projectRequestRef.current) return;
     const controller = new AbortController();
     projectRequestRef.current = controller;
     setProjectLoading(true);
@@ -431,7 +465,7 @@ export function AppBuilder() {
     const content = value.trim();
     if (
       !content ||
-      inputDisabled ||
+      generationDisabled ||
       requestRef.current ||
       content.length > 4000
     )
@@ -441,6 +475,7 @@ export function AppBuilder() {
     requestRef.current = controller;
     const timer = setTimeout(() => controller.abort(), 140000);
     setGenerationError(null);
+    setRestoreError(null);
     setStorageError(null);
     setActiveStep(0);
     setIsRunning(true);
@@ -618,7 +653,7 @@ export function AppBuilder() {
   }
 
   function startNewApp() {
-    if (isRunning || projectLoading) return;
+    if (inputDisabled) return;
     clearWorkspace();
     setProject(null);
     setProjectName("");
@@ -632,6 +667,88 @@ export function AppBuilder() {
     setPreviewReady(false);
     setPreviewError(null);
     setReloadKey((previous) => previous + 1);
+  }
+
+  function previewVersion(version: AppVersion) {
+    if (inputDisabled) return;
+    setRestoreError(null);
+    showVersion(version);
+    setWorkspaceTab("preview");
+  }
+
+  async function restoreVersion(version: AppVersion, retry = false) {
+    if (!project || !latestVersion || inputDisabled || requestRef.current)
+      return;
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const attempt =
+      retry &&
+      restoreAttemptRef.current?.projectId === project.id &&
+      restoreAttemptRef.current.versionId === version.id
+        ? restoreAttemptRef.current
+        : {
+            id: crypto.randomUUID(),
+            projectId: project.id,
+            versionId: version.id,
+            baseVersionId: latestVersion.id,
+          };
+    restoreAttemptRef.current = attempt;
+    setRestoringVersionId(version.id);
+    setRestoreError(null);
+    const timer = setTimeout(() => controller.abort(), 90000);
+    try {
+      const saved = restoredVersionSchema.parse(
+        await projectJson(
+          await fetch(`/api/projects/${project.id}/restore`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              versionId: attempt.versionId,
+              requestId: attempt.id,
+              baseVersionId: attempt.baseVersionId,
+            }),
+            signal: controller.signal,
+          }),
+        ),
+      );
+      if (requestRef.current !== controller) return;
+      const next = toAppVersion(saved.version);
+      setVersions((previous) =>
+        [...previous.filter((item) => item.id !== next.id), next].sort(
+          (a, b) => a.number - b.number,
+        ),
+      );
+      setProject(saved.project);
+      setProjects((previous) => [
+        saved.project,
+        ...previous.filter((item) => item.id !== saved.project.id),
+      ]);
+      mergeMessage(saved.userMessage);
+      mergeMessage(saved.message);
+      setGenerationError(null);
+      setStorageError(null);
+      setActiveStep(5);
+      setLastPrompt("");
+      lastAttemptRef.current = null;
+      restoreAttemptRef.current = null;
+      showVersion(next);
+      setWorkspaceTab("preview");
+    } catch (error) {
+      if (requestRef.current !== controller) return;
+      setRestoreError(
+        controller.signal.aborted
+          ? "Restore was interrupted or timed out. Retry to recover any saved result."
+          : error instanceof Error
+            ? error.message
+            : "Could not restore this version. Please retry.",
+      );
+    } finally {
+      clearTimeout(timer);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setRestoringVersionId(null);
+      }
+    }
   }
 
   const progressSteps = (
@@ -706,13 +823,15 @@ export function AppBuilder() {
             <span className="status-dot" />
             {projectLoading
               ? "Loading projects…"
-              : isRunning
-                ? "Saving as you build"
-                : storageError
-                  ? "Storage unavailable"
-                  : project
-                    ? "Saved to Supabase"
-                    : "Ready to create"}
+              : isRestoring
+                ? "Saving restored version…"
+                : isRunning
+                  ? "Saving as you build"
+                  : storageError
+                    ? "Storage unavailable"
+                    : project
+                      ? "Saved to Supabase"
+                      : "Ready to create"}
           </span>
           {(hasStarted || project) && (
             <button
@@ -995,7 +1114,7 @@ export function AppBuilder() {
                     <p>{generationError}</p>
                     <button
                       type="button"
-                      disabled={isRunning}
+                      disabled={generationDisabled}
                       onClick={() => void submitPrompt(lastPrompt, true)}
                     >
                       Retry generation
@@ -1021,7 +1140,7 @@ export function AppBuilder() {
                 id="prompt"
                 value={prompt}
                 maxLength={4000}
-                disabled={inputDisabled}
+                disabled={generationDisabled}
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder={
                   preview
@@ -1049,7 +1168,7 @@ export function AppBuilder() {
                 <button
                   type="submit"
                   className="send-button"
-                  disabled={inputDisabled || !prompt.trim()}
+                  disabled={generationDisabled || !prompt.trim()}
                   aria-label={hasStarted ? "Send prompt" : "Start building"}
                 >
                   {isRunning ? (
@@ -1066,8 +1185,14 @@ export function AppBuilder() {
             </div>
             <div className="composer-hint">
               <span>
-                Enter to send <span aria-hidden="true">·</span> Shift + Enter
-                for a new line
+                {isHistorical ? (
+                  `Viewing v${preview?.versionNumber}. Restore it to edit, or return to latest.`
+                ) : (
+                  <>
+                    Enter to send <span aria-hidden="true">·</span> Shift +
+                    Enter for a new line
+                  </>
+                )}
               </span>
               <span>{prompt.length}/4000</span>
             </div>
@@ -1077,7 +1202,7 @@ export function AppBuilder() {
                 {preview ? (
                   <button
                     type="button"
-                    disabled={isRunning}
+                    disabled={generationDisabled}
                     onClick={() => {
                       setPrompt(
                         "Change this app to dark mode. Preserve all existing functionality.",
@@ -1092,7 +1217,7 @@ export function AppBuilder() {
                     <button
                       key={example.label}
                       type="button"
-                      disabled={isRunning}
+                      disabled={generationDisabled}
                       onClick={() => {
                         setPrompt(example.prompt);
                         promptRef.current?.focus();
@@ -1171,24 +1296,110 @@ export function AppBuilder() {
               </div>
             </div>
             {versions.length > 0 && (
-              <div className="version-strip" aria-label="Generated versions">
-                <span>Versions</span>
-                <ol>
-                  {versions.map((version) => (
+              <details className="version-history">
+                <summary>
+                  <History size={15} />
+                  <span>Version History</span>
+                  <span className="version-count">{versions.length}</span>
+                  <span className="version-current">
+                    v{preview?.versionNumber}
+                    {isHistorical ? " · Previewing" : " · Latest"}
+                  </span>
+                  <ChevronDown size={14} className="history-chevron" />
+                </summary>
+                <ol aria-label="Version history" className="version-list">
+                  {[...versions].reverse().map((version) => (
                     <li
                       key={version.id}
-                      aria-current={
-                        version.number === preview?.versionNumber
-                          ? "true"
-                          : undefined
-                      }
-                      title={version.prompt}
+                      className="version-item"
+                      data-selected={version.id === preview?.versionId}
                     >
-                      v{version.number}
-                      {version.number === preview?.versionNumber && " · Latest"}
+                      <button
+                        type="button"
+                        className="version-select"
+                        aria-label={`Preview v${version.number}`}
+                        aria-pressed={version.id === preview?.versionId}
+                        disabled={inputDisabled}
+                        onClick={() => previewVersion(version)}
+                      >
+                        <span className="version-meta">
+                          <strong>v{version.number}</strong>
+                          {version.id === latestVersion?.id && (
+                            <span className="version-badge">Latest</span>
+                          )}
+                          {version.id === preview?.versionId &&
+                            version.id !== latestVersion?.id && (
+                              <span className="version-badge">Previewing</span>
+                            )}
+                          <time dateTime={version.createdAt}>
+                            {versionTime(version.createdAt)}
+                          </time>
+                        </span>
+                        <span className="version-prompt">{version.prompt}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="restore-button"
+                        aria-label={`Restore v${version.number}`}
+                        disabled={
+                          inputDisabled || version.id === latestVersion?.id
+                        }
+                        onClick={() => void restoreVersion(version)}
+                      >
+                        {restoringVersionId === version.id ? (
+                          <>
+                            <LoaderCircle size={13} className="animate-spin" />{" "}
+                            Restoring…
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw size={13} /> Restore
+                          </>
+                        )}
+                      </button>
                     </li>
                   ))}
                 </ol>
+              </details>
+            )}
+            {isHistorical && (
+              <div className="historical-preview" role="status">
+                <span>
+                  Previewing v{preview?.versionNumber}. Latest is v
+                  {latestVersion?.number}.
+                </span>
+                <button
+                  type="button"
+                  disabled={inputDisabled}
+                  onClick={() => latestVersion && previewVersion(latestVersion)}
+                >
+                  Return to latest
+                </button>
+              </div>
+            )}
+            {isRestoring && (
+              <p className="restore-status" role="status">
+                Saving restored code as a new version. All existing versions are
+                kept.
+              </p>
+            )}
+            {restoreError && (
+              <div className="restore-error" role="alert">
+                <AlertCircle size={16} />
+                <span>{restoreError}</span>
+                <button
+                  type="button"
+                  disabled={inputDisabled}
+                  onClick={() => {
+                    const source = versions.find(
+                      (item) =>
+                        item.id === restoreAttemptRef.current?.versionId,
+                    );
+                    if (source) void restoreVersion(source, true);
+                  }}
+                >
+                  Retry restore
+                </button>
               </div>
             )}
             {previewError && (
@@ -1282,7 +1493,7 @@ export function AppBuilder() {
       <footer className="app-footer">
         <span>From a spark to something real.</span>
         <span>
-          Phase 4 <span aria-hidden="true">·</span> Saved projects
+          Phase 5 <span aria-hidden="true">·</span> Version history
           <span className="footer-diamond">✧</span>
         </span>
       </footer>

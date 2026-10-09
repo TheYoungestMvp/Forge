@@ -6,6 +6,7 @@ import {
 } from "../src/app/api/projects/route";
 import { GET as getProject } from "../src/app/api/projects/[projectId]/route";
 import { POST as generate } from "../src/app/api/generate/route";
+import { POST as restore } from "../src/app/api/projects/[projectId]/restore/route";
 import { databaseError } from "../src/lib/projects/server";
 import { toAppVersion } from "../src/lib/projects/schema";
 
@@ -322,6 +323,230 @@ test("a failed save does not emit an unsaved generated version", async () => {
         return Response.json(url.searchParams.has("id") ? [] : [base]);
       return Response.json(
         { code: "NETWORK", message: "database down" },
+        { status: 503 },
+      );
+    },
+  );
+});
+
+const restoreId = "55555555-5555-4555-8555-555555555555";
+const restoreBody = {
+  versionId: baseId,
+  requestId: restoreId,
+  baseVersionId: requestId,
+};
+const restoreContext = { params: Promise.resolve({ projectId }) };
+const restoreUrl = `http://localhost:3000/api/projects/${projectId}/restore`;
+const restored = {
+  ...base,
+  id: restoreId,
+  version_number: 3,
+  parent_id: requestId,
+  prompt: "Restore v1",
+  created_at: "2026-10-09T03:00:00Z",
+};
+const restoreUser = {
+  ...user,
+  id: restoreId,
+  request_id: restoreId,
+  content: "Restore v1",
+  seq: 5,
+};
+const restoreReply = {
+  ...assistant,
+  request_id: restoreId,
+  content: "v3 is ready",
+  seq: 6,
+};
+
+test("restore validates request IDs, rejects client source and cross-origin writes", async () => {
+  for (const body of [
+    {},
+    { ...restoreBody, versionId: "bad-id" },
+    { ...restoreBody, html: "client code" },
+  ]) {
+    const response = await restore(
+      jsonRequest(restoreUrl, body),
+      restoreContext,
+    );
+    assert.equal(response.status, 400);
+  }
+  const crossOrigin = await restore(
+    jsonRequest(restoreUrl, restoreBody, { Origin: "https://other.test" }),
+    restoreContext,
+  );
+  assert.equal(crossOrigin.status, 403);
+});
+
+test("restore copies validated database code into a new version and retries without duplicates or model calls", async () => {
+  let committed = false;
+  let insertedUsers = 0;
+  let transactions = 0;
+  await withConfiguration(
+    async () => {
+      delete process.env.LLM_API_KEY;
+      for (let index = 0; index < 2; index++) {
+        const response = await restore(
+          jsonRequest(restoreUrl, restoreBody),
+          restoreContext,
+        );
+        assert.equal(response.status, 200);
+        const saved = await response.json();
+        assert.equal(saved.version.id, restoreId);
+        assert.equal(saved.version.version_number, 3);
+        assert.equal(saved.version.parent_id, requestId);
+        assert.equal(saved.version.css, base.css);
+        assert.notEqual(saved.version.css, version.css);
+        assert.equal(saved.userMessage.content, "Restore v1");
+      }
+      assert.equal(insertedUsers, 1);
+      assert.equal(transactions, 2);
+    },
+    async (input, init) => {
+      const url = new URL(String(input));
+      assert.equal(
+        url.hostname,
+        "localhost",
+        "restoration never contacts a model",
+      );
+      assert.notEqual(init?.method, "DELETE", "history is never removed");
+      assert.notEqual(
+        init?.method,
+        "PATCH",
+        "existing versions are never overwritten",
+      );
+      if (url.pathname.endsWith("/versions")) {
+        if (url.searchParams.get("id") === `eq.${baseId}`) {
+          assert.equal(url.searchParams.get("project_id"), `eq.${projectId}`);
+          return Response.json([base]);
+        }
+        if (url.searchParams.has("id"))
+          return Response.json(committed ? [restored] : []);
+        return Response.json([{ id: requestId }]);
+      }
+      if (url.pathname.endsWith("/messages")) {
+        if (init?.method === "POST") {
+          insertedUsers++;
+          assert.equal(JSON.parse(String(init.body)).content, "Restore v1");
+          return Response.json(restoreUser);
+        }
+        return Response.json(committed ? [restoreUser] : []);
+      }
+      assert(url.pathname.endsWith("/rpc/forge_save_generation"));
+      const payload = JSON.parse(String(init?.body));
+      assert.deepEqual(payload.p_app, app);
+      assert.equal(
+        payload.p_base_version_id,
+        requestId,
+        "new version follows the latest head, not the source version",
+      );
+      assert.equal(payload.p_request_id, restoreId);
+      transactions++;
+      committed = true;
+      return Response.json({
+        project,
+        version: restored,
+        message: restoreReply,
+      });
+    },
+  );
+});
+
+test("restore rejects missing or cross-project versions before any mutation", async () => {
+  await withConfiguration(
+    async () => {
+      const response = await restore(
+        jsonRequest(restoreUrl, restoreBody),
+        restoreContext,
+      );
+      assert.equal(response.status, 404);
+      assert.equal((await response.json()).error.code, "VERSION_NOT_FOUND");
+    },
+    async (input, init) => {
+      const url = new URL(String(input));
+      assert.equal(url.searchParams.get("project_id"), `eq.${projectId}`);
+      assert(!init?.method || init.method === "GET");
+      return Response.json([]);
+    },
+  );
+});
+
+test("restore rejects invalid saved application code before any mutation", async () => {
+  await withConfiguration(
+    async () => {
+      const response = await restore(
+        jsonRequest(restoreUrl, restoreBody),
+        restoreContext,
+      );
+      assert.equal(response.status, 422);
+      assert.equal(
+        (await response.json()).error.code,
+        "INVALID_STORED_VERSION",
+      );
+    },
+    async (_input, init) => {
+      assert(!init?.method || init.method === "GET");
+      return Response.json([
+        { ...base, javascript: "parent.document.body.textContent='unsafe';" },
+      ]);
+    },
+  );
+});
+
+test("restore rejects stale heads and conflicting request IDs without adding a version", async () => {
+  for (const conflict of [false, true]) {
+    await withConfiguration(
+      async () => {
+        const response = await restore(
+          jsonRequest(restoreUrl, restoreBody),
+          restoreContext,
+        );
+        assert.equal(response.status, 409);
+        assert.equal(
+          (await response.json()).error.code,
+          conflict ? "INVALID_REQUEST" : "PROJECT_CHANGED",
+        );
+      },
+      async (input, init) => {
+        assert(!init?.method || init.method === "GET");
+        const url = new URL(String(input));
+        if (url.pathname.endsWith("/messages")) return Response.json([]);
+        if (url.searchParams.get("id") === `eq.${baseId}`)
+          return Response.json([base]);
+        if (url.searchParams.has("id"))
+          return Response.json(
+            conflict ? [{ ...restored, prompt: "Another operation" }] : [],
+          );
+        return Response.json([{ id: restoreId }]);
+      },
+    );
+  }
+});
+
+test("failed restore transactions return an error instead of an unsaved new version", async () => {
+  await withConfiguration(
+    async () => {
+      const response = await restore(
+        jsonRequest(restoreUrl, restoreBody),
+        restoreContext,
+      );
+      assert.equal(response.status, 503);
+      const body = await response.json();
+      assert.equal(body.error.code, "DATABASE_UNAVAILABLE");
+      assert.equal(body.version, undefined);
+    },
+    async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/messages"))
+        return Response.json(init?.method === "POST" ? restoreUser : []);
+      if (url.pathname.endsWith("/versions")) {
+        if (url.searchParams.get("id") === `eq.${baseId}`)
+          return Response.json([base]);
+        if (url.searchParams.has("id")) return Response.json([]);
+        return Response.json([{ id: requestId }]);
+      }
+      return Response.json(
+        { code: "NETWORK", message: "unavailable" },
         { status: 503 },
       );
     },

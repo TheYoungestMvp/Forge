@@ -48,6 +48,16 @@ export const createProjectSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
 });
 
+export const restoreRequestSchema = z.strictObject({
+  versionId: z.uuid(),
+  requestId: z.uuid(),
+  baseVersionId: z.uuid(),
+});
+
+export const restoredVersionSchema = savedGenerationSchema.extend({
+  userMessage: messageSchema,
+});
+
 export type Project = z.infer<typeof projectSchema>;
 export type ProjectMessage = z.infer<typeof messageSchema>;
 export type StoredVersion = z.infer<typeof versionSchema>;
