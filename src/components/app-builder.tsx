@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowUp,
   Check,
   ChevronDown,
@@ -10,19 +11,24 @@ import {
   Circle,
   Code2,
   Compass,
-  FlaskConical,
   Layers2,
   LoaderCircle,
   MessageSquare,
   Monitor,
   PanelLeft,
+  Plus,
   RotateCcw,
   Smartphone,
   Sparkles,
   SquareArrowOutUpRight,
   WandSparkles,
+  XCircle,
 } from "lucide-react";
-import { mockPreview } from "@/lib/mock-preview";
+import {
+  generationEventSchema,
+  type GeneratedApp,
+} from "@/lib/generation/schema";
+import { composePreview } from "@/lib/preview/compose";
 
 const steps = [
   "Understanding requirements",
@@ -31,46 +37,104 @@ const steps = [
   "Validating application",
   "Completed",
 ];
-
-type Message = { id: number; role: "user" | "assistant"; content: string };
-
-const initialMessages: Message[] = [
+const examples = [
   {
-    id: 1,
-    role: "user",
-    content:
-      "Build a calm, minimal task manager. I want to add tasks, check them off, and keep track of my day.",
+    label: "Todo App",
+    prompt:
+      "Build a minimal todo app with adding, deleting and completing tasks.",
   },
   {
-    id: 2,
-    role: "assistant",
-    content:
-      "Meet Daylight — a little more focus, a little less noise. Your interactive mock preview is ready to explore.",
+    label: "Calculator",
+    prompt:
+      "Build a minimal calculator with adding, subtracting, multiplying, dividing, decimals and clearing the result.",
+  },
+  {
+    label: "Habit Tracker",
+    prompt:
+      "Build a minimal habit tracker with adding and deleting habits, marking habits completed today and showing progress.",
   },
 ];
+type Message = { id: number; role: "user" | "assistant"; content: string };
+type Preview = {
+  app: GeneratedApp;
+  srcDoc: string;
+  token: string;
+  model: string;
+};
 
 export function AppBuilder() {
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [prompt, setPrompt] = useState("");
   const [isRunning, setIsRunning] = useState(false);
-  const [activeStep, setActiveStep] = useState(steps.length - 1);
+  const [activeStep, setActiveStep] = useState(-1);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [lastPrompt, setLastPrompt] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewReady, setPreviewReady] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [workspaceTab, setWorkspaceTab] = useState<"chat" | "preview">("chat");
   const [reloadKey, setReloadKey] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const previewTokenRef = useRef<string | null>(null);
+  const previewSettledRef = useRef(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
-  const nextMessageId = useRef(3);
+  const nextMessageId = useRef(1);
+  const inputDisabled = isRunning || Boolean(preview);
 
   useEffect(
     () => () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      requestRef.current?.abort();
     },
     [],
   );
 
   useEffect(() => {
-    if (messages.length > initialMessages.length || isRunning) {
+    function handlePreviewMessage(event: MessageEvent) {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      const data = event.data;
+      if (
+        !data ||
+        typeof data !== "object" ||
+        data.channel !== "forge-preview" ||
+        data.token !== previewTokenRef.current
+      )
+        return;
+      if (data.type === "ready") {
+        previewSettledRef.current = true;
+        setPreviewReady(true);
+      }
+      if (
+        data.type === "error" &&
+        typeof data.message === "string" &&
+        data.message.length <= 400
+      ) {
+        previewSettledRef.current = true;
+        setPreviewReady(false);
+        setPreviewError(
+          data.message || "The application encountered a runtime error.",
+        );
+      }
+    }
+    window.addEventListener("message", handlePreviewMessage);
+    return () => window.removeEventListener("message", handlePreviewMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!preview) return;
+    const timer = setTimeout(() => {
+      if (!previewSettledRef.current)
+        setPreviewError(
+          "The preview did not finish loading. Try reloading it.",
+        );
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [preview, reloadKey]);
+
+  useEffect(() => {
+    if (messages.length || isRunning) {
       messageEndRef.current?.scrollIntoView({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
           ? "auto"
@@ -78,40 +142,154 @@ export function AppBuilder() {
         block: "nearest",
       });
     }
-  }, [messages, isRunning]);
+  }, [messages, isRunning, generationError]);
 
-  function submitPrompt() {
-    const content = prompt.trim();
-    if (!content || isRunning || timerRef.current || content.length > 4000)
+  function appendMessage(role: Message["role"], content: string) {
+    const id = nextMessageId.current++;
+    setMessages((previous) => [...previous, { id, role, content }]);
+  }
+
+  async function submitPrompt(value = prompt) {
+    const content = value.trim();
+    if (
+      !content ||
+      inputDisabled ||
+      requestRef.current ||
+      content.length > 4000
+    )
       return;
-    const userMessageId = nextMessageId.current++;
-    setMessages((previous) => [
-      ...previous,
-      { id: userMessageId, role: "user", content },
-    ]);
+    const controller = new AbortController();
+    requestRef.current = controller;
+    const timer = setTimeout(() => controller.abort(), 140000);
+    appendMessage("user", content);
+    setLastPrompt(content);
     setPrompt("");
-    setIsRunning(true);
+    setGenerationError(null);
     setActiveStep(0);
-    let step = 0;
-    timerRef.current = setInterval(() => {
-      step += 1;
-      setActiveStep(step);
-      if (step === steps.length - 1) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        timerRef.current = null;
-        const assistantMessageId = nextMessageId.current++;
-        setMessages((previous) => [
-          ...previous,
-          {
-            id: assistantMessageId,
-            role: "assistant",
-            content:
-              "Mock run completed. This phase demonstrates the Agent workflow with a fixed example. Your prompt wasn't sent to a model, and the preview remains unchanged.",
-          },
-        ]);
-        setIsRunning(false);
+    setIsRunning(true);
+    let completed = false;
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: content }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(
+          typeof failure?.error?.message === "string"
+            ? failure.error.message
+            : "Generation failed. Please try again.",
+        );
       }
-    }, 850);
+      if (
+        !response.body ||
+        !response.headers.get("content-type")?.includes("application/x-ndjson")
+      )
+        throw new Error(
+          "The server returned an unexpected generation response.",
+        );
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      function receive(line: string) {
+        if (!line.trim()) return;
+        let data: unknown;
+        try {
+          data = JSON.parse(line);
+        } catch {
+          throw new Error(
+            "The server returned an invalid generation response.",
+          );
+        }
+        const result = generationEventSchema.safeParse(data);
+        if (!result.success)
+          throw new Error(
+            "The server returned an invalid generation response.",
+          );
+        const event = result.data;
+        if (event.type === "status") setActiveStep(event.step);
+        if (event.type === "error") throw new Error(event.message);
+        if (event.type === "complete") {
+          const token = crypto.randomUUID();
+          previewTokenRef.current = token;
+          previewSettledRef.current = false;
+          setPreviewReady(false);
+          setPreviewError(null);
+          setPreview({
+            app: event.app,
+            srcDoc: composePreview(event.app, token),
+            token,
+            model: event.model,
+          });
+          setActiveStep(4);
+          appendMessage(
+            "assistant",
+            `${event.app.title} is ready. Try its controls in Preview. Start a new app to generate another independent application.`,
+          );
+          completed = true;
+        }
+      }
+      try {
+        while (!completed) {
+          const chunk = await reader.read();
+          buffer += decoder.decode(chunk.value, { stream: !chunk.done });
+          if (buffer.length > 1024 * 1024)
+            throw new Error("The generation response is too large.");
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            receive(line);
+            if (completed) break;
+          }
+          if (chunk.done) {
+            if (!completed && buffer.trim()) receive(buffer);
+            break;
+          }
+        }
+        if (!completed)
+          throw new Error(
+            "Generation ended before an application was returned. Please retry.",
+          );
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+    } catch (error) {
+      const message = controller.signal.aborted
+        ? "The generation request was interrupted or timed out. Please retry."
+        : error instanceof Error
+          ? error.message
+          : "Generation failed. Please try again.";
+      setGenerationError(message);
+      appendMessage("assistant", message);
+    } finally {
+      clearTimeout(timer);
+      requestRef.current = null;
+      setIsRunning(false);
+    }
+  }
+
+  function startNewApp() {
+    if (isRunning) return;
+    previewTokenRef.current = null;
+    previewSettledRef.current = false;
+    setPreview(null);
+    setPreviewReady(false);
+    setPreviewError(null);
+    setGenerationError(null);
+    setActiveStep(-1);
+    setMessages([]);
+    setPrompt("");
+    setLastPrompt("");
+    setWorkspaceTab("chat");
+  }
+
+  function reloadPreview() {
+    previewSettledRef.current = false;
+    setPreviewReady(false);
+    setPreviewError(null);
+    setReloadKey((previous) => previous + 1);
   }
 
   return (
@@ -130,19 +308,29 @@ export function AppBuilder() {
           <span className="project-icon">
             <Compass size={15} />
           </span>
-          <span>Daylight Workspace</span>
+          <span className="project-name">
+            {preview?.app.title || "Untitled project"}
+          </span>
           <span className="project-label">Project</span>
         </div>
         <div className="header-right">
           <span className="mock-badge">
-            <FlaskConical size={12} /> Mock mode
+            <Sparkles size={12} /> AI generation
           </span>
+          {preview && (
+            <button
+              type="button"
+              className="new-app-button"
+              onClick={startNewApp}
+            >
+              <Plus size={12} /> New app
+            </button>
+          )}
           <span className="avatar" aria-label="Demo user">
             Y
           </span>
         </div>
       </header>
-
       <div className="workspace-topline">
         <div>
           <span className="eyebrow">YOUR WORKSPACE</span>
@@ -151,10 +339,10 @@ export function AppBuilder() {
           </h1>
         </div>
         <span className="workspace-note">
-          <span className="status-dot" /> All changes stay in this demo
+          <span className="status-dot" />
+          Session only · resets on refresh
         </span>
       </div>
-
       <div className="mobile-workspace-tabs" aria-label="Workspace panels">
         <button
           type="button"
@@ -173,7 +361,6 @@ export function AppBuilder() {
           Preview
         </button>
       </div>
-
       <main className="workspace">
         <section
           className={`chat-panel ${workspaceTab === "chat" ? "mobile-visible" : ""}`}
@@ -186,12 +373,11 @@ export function AppBuilder() {
               </span>
               <h2>Agent Chat</h2>
               <span className="agent-status">
-                {isRunning ? "Working" : "Ready"}
+                {isRunning ? "Working" : generationError ? "Error" : "Ready"}
               </span>
             </div>
             <PanelLeft size={16} className="muted-icon" aria-hidden="true" />
           </div>
-
           <div className="chat-scroll">
             <div className="welcome-card">
               <span className="welcome-icon">
@@ -200,18 +386,20 @@ export function AppBuilder() {
               <h3>Let&apos;s build something great.</h3>
               <p>
                 Describe your idea. I&apos;ll help bring it to life,
-                <br className="desktop-break" /> one conversation at a time.
+                <br className="desktop-break" />
+                from a single description.
               </p>
               <div className="welcome-tags">
                 <span>
-                  <Code2 size={11} /> Browser apps
+                  <Code2 size={11} />
+                  Browser apps
                 </span>
                 <span>
-                  <Sparkles size={11} /> Natural language
+                  <Sparkles size={11} />
+                  Natural language
                 </span>
               </div>
             </div>
-
             <div
               className="messages"
               role="log"
@@ -236,14 +424,13 @@ export function AppBuilder() {
                       {message.role === "assistant" ? "Forge Agent" : "You"}
                     </span>
                     {message.role === "assistant" && (
-                      <span className="message-label">MOCK</span>
+                      <span className="message-label">AI</span>
                     )}
                   </div>
                   <p>{message.content}</p>
                 </article>
               ))}
             </div>
-
             <div
               className="progress-card"
               aria-label="Agent progress"
@@ -252,36 +439,53 @@ export function AppBuilder() {
               <p className="sr-only" role="status">
                 {isRunning
                   ? steps[activeStep]
-                  : "Completed — mock preview ready"}
+                  : generationError
+                    ? "Generation failed"
+                    : preview
+                      ? "Completed — application generated"
+                      : "Ready for a description"}
               </p>
               <div className="progress-heading">
                 <span>
                   <WandSparkles size={13} />
                   {isRunning
                     ? "Bringing your idea to life"
-                    : "Application ready"}
+                    : generationError
+                      ? "Generation failed"
+                      : preview
+                        ? "Application ready"
+                        : "Ready when you are"}
                 </span>
-                <span className="progress-caption">Mock run</span>
+                <span className="progress-caption">
+                  {preview ? "AI generated" : "First generation"}
+                </span>
               </div>
               <ol>
                 {steps.map((label, index) => {
                   const done =
-                    index < activeStep || (!isRunning && index === activeStep);
+                    index < activeStep ||
+                    (Boolean(preview) && index === activeStep);
                   const current = isRunning && index === activeStep;
+                  const failed =
+                    Boolean(generationError) && index === activeStep;
                   return (
                     <li
                       key={label}
                       className={
-                        done
-                          ? "step-done"
-                          : current
-                            ? "step-active"
-                            : "step-pending"
+                        failed
+                          ? "step-failed"
+                          : done
+                            ? "step-done"
+                            : current
+                              ? "step-active"
+                              : "step-pending"
                       }
                       aria-current={current ? "step" : undefined}
                     >
                       <span className="step-icon">
-                        {done ? (
+                        {failed ? (
+                          <XCircle size={12} />
+                        ) : done ? (
                           <Check size={12} strokeWidth={2.5} />
                         ) : current ? (
                           <LoaderCircle size={12} className="animate-spin" />
@@ -299,43 +503,71 @@ export function AppBuilder() {
                 })}
               </ol>
             </div>
+            {generationError && (
+              <div className="generation-error" role="alert">
+                <AlertCircle size={15} />
+                <div>
+                  <strong>Generation failed</strong>
+                  <p>{generationError}</p>
+                  <button
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => void submitPrompt(lastPrompt)}
+                  >
+                    Retry generation
+                  </button>
+                </div>
+              </div>
+            )}
             <div ref={messageEndRef} />
           </div>
-
           <form
             className="composer-area"
             onSubmit={(event) => {
               event.preventDefault();
-              submitPrompt();
+              void submitPrompt();
             }}
           >
             <div className="prompt-suggestions">
-              <span>Try a follow-up</span>
-              <button
-                type="button"
-                disabled={isRunning}
-                onClick={() => {
-                  setPrompt(
-                    "Add a dark theme while keeping all existing features.",
-                  );
-                  promptRef.current?.focus();
-                }}
-              >
-                Add a dark theme <ChevronRight size={11} />
-              </button>
+              <span>
+                {preview ? "First generation complete" : "Try an idea"}
+              </span>
+              {preview ? (
+                <button type="button" onClick={startNewApp}>
+                  Start a new app <ChevronRight size={11} />
+                </button>
+              ) : (
+                examples.map((example) => (
+                  <button
+                    key={example.label}
+                    type="button"
+                    disabled={isRunning}
+                    onClick={() => {
+                      setPrompt(example.prompt);
+                      promptRef.current?.focus();
+                    }}
+                  >
+                    {example.label}
+                  </button>
+                ))
+              )}
             </div>
             <div className={`composer ${isRunning ? "composer-busy" : ""}`}>
               <label htmlFor="prompt" className="sr-only">
-                Describe your app or request a change
+                Describe the app you want to create
               </label>
               <textarea
                 ref={promptRef}
                 id="prompt"
                 value={prompt}
                 maxLength={4000}
-                disabled={isRunning}
+                disabled={inputDisabled}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="What would you like to build or change?"
+                placeholder={
+                  preview
+                    ? "Start a new app to generate another application."
+                    : "What would you like to build?"
+                }
                 rows={3}
                 onKeyDown={(event) => {
                   if (
@@ -344,19 +576,20 @@ export function AppBuilder() {
                     !event.nativeEvent.isComposing
                   ) {
                     event.preventDefault();
-                    submitPrompt();
+                    void submitPrompt();
                   }
                 }}
               />
               <div className="composer-footer">
                 <span className="composer-model">
-                  <span className="status-dot" /> Mock Agent{" "}
+                  <span className="status-dot" />
+                  {preview?.model || "App Generator"}
                   <ChevronDown size={11} />
                 </span>
                 <button
                   type="submit"
                   className="send-button"
-                  disabled={isRunning || !prompt.trim()}
+                  disabled={inputDisabled || !prompt.trim()}
                   aria-label="Send prompt"
                 >
                   {isRunning ? (
@@ -376,7 +609,6 @@ export function AppBuilder() {
             </div>
           </form>
         </section>
-
         <section
           className={`preview-panel ${workspaceTab === "preview" ? "mobile-visible" : ""}`}
           aria-label="App Preview"
@@ -385,9 +617,12 @@ export function AppBuilder() {
             <div className="panel-title">
               <Monitor size={15} />
               <h2>Preview</h2>
-              <span className="preview-live">
-                <span className="status-dot" /> Live
-              </span>
+              {preview && (
+                <span className="preview-live">
+                  <span className="status-dot" />
+                  {previewReady ? "Live" : previewError ? "Error" : "Loading"}
+                </span>
+              )}
             </div>
             <div className="preview-actions">
               <div className="device-switch" aria-label="Preview device">
@@ -417,51 +652,93 @@ export function AppBuilder() {
                 type="button"
                 className="icon-button"
                 aria-label="Reload preview"
-                title="Reload preview (resets example tasks)"
-                onClick={() => setReloadKey((previous) => previous + 1)}
+                title="Reload preview (resets application state)"
+                disabled={!preview}
+                onClick={reloadPreview}
               >
                 <RotateCcw size={14} />
               </button>
             </div>
           </div>
-
+          {previewError && (
+            <div className="preview-error" role="alert">
+              <AlertCircle size={14} />
+              <span>Preview runtime error: {previewError}</span>
+              <button type="button" onClick={reloadPreview}>
+                Reload
+              </button>
+            </div>
+          )}
           <div className="preview-canvas">
             <div className="canvas-caption">
               <span className="canvas-caption-line" />
               YOUR IDEA, IN ACTION
               <span className="canvas-caption-line" />
             </div>
-            <div
-              className={`preview-frame ${device === "mobile" ? "preview-mobile" : "preview-desktop"}`}
-            >
-              <div className="browser-bar">
-                <span className="browser-dots">
-                  <i />
-                  <i />
-                  <i />
-                </span>
-                <span className="browser-address">
-                  <span className="address-dot" />
-                  daylight.app / preview
-                </span>
-                <SquareArrowOutUpRight size={11} aria-hidden="true" />
+            {preview ? (
+              <div
+                className={`preview-frame ${device === "mobile" ? "preview-mobile" : "preview-desktop"}`}
+              >
+                <div className="browser-bar">
+                  <span className="browser-dots">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  <span className="browser-address">
+                    <span className="address-dot" />
+                    generated.app / preview
+                  </span>
+                  <SquareArrowOutUpRight size={11} aria-hidden="true" />
+                </div>
+                <iframe
+                  ref={iframeRef}
+                  key={`${preview.token}-${reloadKey}`}
+                  title={`${preview.app.title} interactive preview`}
+                  srcDoc={preview.srcDoc}
+                  sandbox="allow-scripts"
+                  referrerPolicy="no-referrer"
+                />
               </div>
-              <iframe
-                key={reloadKey}
-                title="Daylight interactive task manager mock preview"
-                srcDoc={mockPreview}
-                sandbox="allow-scripts"
-                referrerPolicy="no-referrer"
-              />
-            </div>
+            ) : (
+              <div className="preview-empty">
+                <span>
+                  <WandSparkles size={27} />
+                </span>
+                <h3>
+                  {isRunning
+                    ? "Building your application"
+                    : "Your app starts here"}
+                </h3>
+                <p>
+                  {isRunning
+                    ? "The model is generating a self-contained browser app. Your preview will appear once validation passes."
+                    : "Describe an idea in Agent Chat. The generated application will run right here."}
+                </p>
+                {isRunning && (
+                  <LoaderCircle size={20} className="animate-spin" />
+                )}
+              </div>
+            )}
             <p className="preview-footnote">
-              <Sparkles size={12} />A working example. Add a task, check it off,
-              make it yours.
+              <Sparkles size={12} />
+              {preview
+                ? "AI-generated browser app · isolated preview"
+                : "HTML + CSS + JavaScript · no setup required"}
             </p>
           </div>
           <div className="preview-statusbar">
             <span>
-              <span className="status-dot" /> Preview running
+              <span className="status-dot" />
+              {previewError
+                ? "Runtime error"
+                : previewReady
+                  ? "Preview running"
+                  : isRunning
+                    ? "Generating application"
+                    : preview
+                      ? "Loading preview"
+                      : "Waiting for an idea"}
             </span>
             <span>
               {device === "desktop"
@@ -473,11 +750,10 @@ export function AppBuilder() {
           </div>
         </section>
       </main>
-
       <footer className="app-footer">
         <span>From a spark to something real.</span>
         <span>
-          Phase 1 <span aria-hidden="true">·</span> UI demo{" "}
+          Phase 2 <span aria-hidden="true">·</span> AI app generation
           <span className="footer-diamond">✧</span>
         </span>
       </footer>

@@ -7,13 +7,18 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "format": "prettier --write src"
+    "format": "prettier --write src tests",
+    "test": "tsx --conditions=react-server --test tests/generation.test.ts"
   },
   "dependencies": {
+    "acorn": "^8.19.0",
     "lucide-react": "^1.53.0",
     "next": "^16.4.0",
+    "parse5": "^8.0.1",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -24,6 +29,7 @@
     "eslint-config-next": "^16.4.0",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   }
 }

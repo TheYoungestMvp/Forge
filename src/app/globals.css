@@ -1175,3 +1175,152 @@ p {
     scroll-behavior: auto !important;
   }
 }
+
+.project-heading {
+  min-width: 0;
+}
+.project-name {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.new-app-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  font-size: 10px;
+  color: #54735a;
+  background: white;
+  border: 1px solid #dce4d6;
+  border-radius: 6px;
+}
+.new-app-button:hover {
+  background: #edf3e7;
+}
+.preview-empty {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  gap: 17px;
+  padding: 30px;
+  color: #8b9d80;
+}
+.preview-empty > span {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #dce7d3;
+  border-radius: 19px;
+  background: #f9fbf6;
+  color: #79916a;
+}
+.preview-empty h3 {
+  font-size: 19px;
+  font-weight: 500;
+  color: #667e60;
+}
+.preview-empty p {
+  max-width: 320px;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.generation-error {
+  display: flex;
+  gap: 10px;
+  border: 1px solid #ecd5ce;
+  border-radius: 8px;
+  background: #fff9f6;
+  color: #a16150;
+  padding: 13px;
+  margin-top: 16px;
+}
+.generation-error > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.generation-error strong {
+  font-size: 11px;
+}
+.generation-error p {
+  font-size: 11px;
+  line-height: 1.7;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.generation-error button {
+  margin-top: 9px;
+  border: 1px solid #e4c8bd;
+  background: white;
+  color: #9a5e4c;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+.step-failed {
+  color: #b17460;
+}
+.step-failed .step-icon {
+  background: #faebe3;
+}
+.preview-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  padding: 12px 16px;
+  color: #a36755;
+  background: #fff6ef;
+  border-bottom: 1px solid #efdacf;
+}
+.preview-error > svg {
+  flex-shrink: 0;
+}
+.preview-error span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.preview-error button {
+  color: inherit;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  font-size: 10px;
+}
+.icon-button:disabled {
+  opacity: 0.35;
+}
+.composer-model {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+  white-space: nowrap;
+}
+.prompt-suggestions {
+  flex-wrap: wrap;
+}
+@media (max-width: 800px) {
+  .project-name {
+    max-width: 140px;
+  }
+  .mock-badge {
+    display: none;
+  }
+}
+@media (max-width: 430px) {
+  .project-name {
+    max-width: 125px;
+  }
+  .new-app-button {
+    font-size: 9px;
+    padding: 5px 7px;
+  }
+}

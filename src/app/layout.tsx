@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Forge — App Builder",
-  description: "An AI app builder workspace. Phase 1: interactive mock demo.",
+  description:
+    "Describe an idea and generate an interactive browser application with AI.",
 };
 
 export default function RootLayout({
