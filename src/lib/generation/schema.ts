@@ -18,6 +18,51 @@ export const generatedAppSchema = z.strictObject({
 
 export type GeneratedApp = z.infer<typeof generatedAppSchema>;
 
+export const appPlanSchema = z.strictObject({
+  steps: z
+    .array(z.string().trim().min(1).max(220))
+    .min(2)
+    .max(4)
+    .refine(
+      (steps) =>
+        new Set(steps.map((step) => step.toLowerCase())).size === steps.length,
+      "Plan steps must be distinct",
+    )
+    .refine(
+      (steps) =>
+        !steps.some((step) =>
+          [
+            "understanding requirements",
+            "planning application",
+            "generating code",
+            "validating application",
+            "saving version",
+            "completed",
+          ].includes(step.toLowerCase()),
+        ),
+      "Plan steps must describe concrete changes, not stage labels",
+    ),
+});
+export type AppPlan = z.infer<typeof appPlanSchema>;
+export const planJsonSchema = {
+  type: "object",
+  properties: {
+    steps: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 2,
+      maxItems: 4,
+    },
+  },
+  required: ["steps"],
+  additionalProperties: false,
+} as const;
+export const pendingGenerationSchema = z.object({
+  state: z.literal("processing"),
+  message: messageSchema,
+  userMessage: messageSchema,
+});
+
 // Kept deliberately basic for providers supporting the strict JSON Schema subset.
 export const appJsonSchema = {
   type: "object",
@@ -52,6 +97,7 @@ export type AppVersion = {
 };
 
 export const generationEventSchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("plan"), plan: appPlanSchema }),
   z.strictObject({
     type: z.literal("status"),
     step: z.number().int().min(0).max(4),

@@ -22,16 +22,23 @@ import {
   RotateCcw,
   Smartphone,
   Sparkles,
-  SquareArrowOutUpRight,
+  Trash2,
   WandSparkles,
   XCircle,
 } from "lucide-react";
 import {
   generationEventSchema,
+  pendingGenerationSchema,
   type AppVersion,
   type GeneratedApp,
 } from "@/lib/generation/schema";
 import { composePreview } from "@/lib/preview/compose";
+import { workspaceStatus } from "@/lib/preview/status";
+import { projectLabel } from "@/lib/projects/label";
+import { GenerationField } from "@/components/generation-field";
+import { AppReadyMoment } from "@/components/app-ready-moment";
+import { ProjectControls } from "@/components/project-controls";
+import { recoverRequest } from "@/lib/generation/recovery";
 import {
   projectSchema,
   projectSnapshotSchema,
@@ -71,13 +78,13 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   saved: boolean;
+  plan?: string[];
 };
 type Preview = {
   versionId: string;
   app: GeneratedApp;
   srcDoc: string;
   token: string;
-  model: string;
   versionNumber: number;
 };
 
@@ -162,6 +169,7 @@ function ExampleArtwork({ kind }: { kind: string }) {
 export function AppBuilder() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [prompt, setPrompt] = useState("");
+  const [composerFocused, setComposerFocused] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [activeStep, setActiveStep] = useState(-1);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -171,7 +179,17 @@ export function AppBuilder() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [projectName, setProjectName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [projectNotice, setProjectNotice] = useState<string | null>(null);
+  const deleteDialogRef = useRef<HTMLDialogElement>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
   const [projectLoading, setProjectLoading] = useState(true);
+  const [recoveringRequestId, setRecoveringRequestId] = useState<string | null>(
+    null,
+  );
   const [storageError, setStorageError] = useState<string | null>(null);
   const [restoringVersionId, setRestoringVersionId] = useState<string | null>(
     null,
@@ -179,6 +197,7 @@ export function AppBuilder() {
   const isRestoring = restoringVersionId !== null;
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
+  const [freshVersionId, setFreshVersionId] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [workspaceTab, setWorkspaceTab] = useState<"chat" | "preview">("chat");
@@ -192,6 +211,7 @@ export function AppBuilder() {
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const projectRequestRef = useRef<AbortController | null>(null);
   const loadTargetRef = useRef<string | null>(null);
+  const displayedProjectIdRef = useRef<string | null>(null);
   const lastAttemptRef = useRef<{
     id: string;
     projectId: string;
@@ -204,17 +224,41 @@ export function AppBuilder() {
     versionId: string;
     baseVersionId: string;
   } | null>(null);
-  const inputDisabled = isRunning || isRestoring || projectLoading;
+  const inputDisabled =
+    isRunning ||
+    isRestoring ||
+    isDeleting ||
+    projectLoading ||
+    Boolean(recoveringRequestId);
   const latestVersion = versions.at(-1);
   const isHistorical = Boolean(
     preview && latestVersion && preview.versionId !== latestVersion.id,
   );
   const generationDisabled = inputDisabled || isHistorical;
   const hasStarted = messages.length > 0 || Boolean(preview);
+  const status = workspaceStatus({
+    generating: isRunning,
+    restoring: isRestoring,
+    generationError,
+    previewError,
+    hasPreview: Boolean(preview),
+    previewReady,
+  });
   const workHeadingRef = useRef<HTMLHeadingElement>(null);
   const wasStartedRef = useRef(false);
 
+  useEffect(() => {
+    const dialog = deleteDialogRef.current;
+    if (deleteTarget && dialog && !dialog.open) {
+      dialog.showModal();
+      deleteCancelRef.current?.focus();
+    } else if (!deleteTarget && dialog?.open) {
+      dialog.close();
+    }
+  }, [deleteTarget]);
+
   const showVersion = useCallback((version: AppVersion) => {
+    setFreshVersionId(null);
     const token = crypto.randomUUID();
     previewTokenRef.current = token;
     previewSettledRef.current = false;
@@ -225,7 +269,6 @@ export function AppBuilder() {
       app: version.app,
       srcDoc: composePreview(version.app, token),
       token,
-      model: version.model,
       versionNumber: version.number,
     });
   }, []);
@@ -237,7 +280,11 @@ export function AppBuilder() {
     lastAttemptRef.current = null;
     restoreAttemptRef.current = null;
     setRestoreError(null);
+    setRecoveringRequestId(null);
+    setIsRunning(false);
+    setRestoringVersionId(null);
     setPreview(null);
+    setFreshVersionId(null);
     setVersions([]);
     setPreviewReady(false);
     setPreviewError(null);
@@ -250,14 +297,27 @@ export function AppBuilder() {
   }, []);
 
   const loadWorkspace = useCallback(
-    async (id: string | null) => {
+    async (id: string | null, replaceUrl = true) => {
+      deleteDialogRef.current?.close();
+      setProjectNotice(null);
       projectRequestRef.current?.abort();
       const controller = new AbortController();
       projectRequestRef.current = controller;
       loadTargetRef.current = id;
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, 65000);
       setProjectLoading(true);
       setStorageError(null);
       try {
+        await projectJson(
+          await fetch("/api/session", {
+            method: "POST",
+            signal: controller.signal,
+          }),
+        );
         const list = z.array(projectSchema).parse(
           await projectJson(
             await fetch("/api/projects", {
@@ -266,7 +326,7 @@ export function AppBuilder() {
             }),
           ),
         );
-        if (controller.signal.aborted) return;
+        controller.signal.throwIfAborted();
         setProjects(list);
         if (id) {
           const snapshot = projectSnapshotSchema.parse(
@@ -277,15 +337,17 @@ export function AppBuilder() {
               }),
             ),
           );
-          if (controller.signal.aborted) return;
+          controller.signal.throwIfAborted();
           clearWorkspace();
           setProject(snapshot.project);
+          displayedProjectIdRef.current = snapshot.project.id;
           setMessages(
             snapshot.messages.map((message) => ({
               id: message.id,
               role: message.role,
               content: message.content,
               saved: true,
+              plan: message.plan,
             })),
           );
           const storedVersions = snapshot.versions.map(toAppVersion);
@@ -299,19 +361,59 @@ export function AppBuilder() {
             (message) => message.role === "user",
           );
           if (lastUser) setLastPrompt(lastUser.content);
-          projectUrl(id, true);
+          const recovered = recoverRequest(snapshot);
+          if (recovered) {
+            setActiveStep(recovered.phase);
+            if (
+              recovered.operation === "restore" &&
+              recovered.sourceVersionId &&
+              recovered.baseVersionId
+            ) {
+              restoreAttemptRef.current = {
+                id: recovered.id,
+                projectId: id,
+                versionId: recovered.sourceVersionId,
+                baseVersionId: recovered.baseVersionId,
+              };
+              if (recovered.status === "processing")
+                setRestoringVersionId(recovered.sourceVersionId);
+              else setRestoreError(recovered.error);
+            } else {
+              lastAttemptRef.current = {
+                id: recovered.id,
+                projectId: id,
+                prompt: recovered.prompt,
+                baseVersionId: recovered.baseVersionId,
+              };
+              if (recovered.status === "processing") setIsRunning(true);
+              else setGenerationError(recovered.error);
+            }
+            if (recovered.status === "processing")
+              setRecoveringRequestId(recovered.id);
+          }
+          projectUrl(id, replaceUrl);
         } else {
           clearWorkspace();
           setProject(null);
+          displayedProjectIdRef.current = null;
+          projectUrl(null, true);
         }
       } catch (error) {
-        if (!controller.signal.aborted)
+        if (
+          projectRequestRef.current === controller &&
+          (timedOut || !controller.signal.aborted)
+        ) {
+          projectUrl(displayedProjectIdRef.current, true);
           setStorageError(
-            error instanceof Error
-              ? error.message
-              : "Could not load your project. Please retry.",
+            timedOut
+              ? "Loading projects timed out. Check your connection and retry."
+              : error instanceof Error
+                ? error.message
+                : "Could not load your project. Please retry.",
           );
+        }
       } finally {
+        clearTimeout(timer);
         if (projectRequestRef.current === controller) {
           projectRequestRef.current = null;
           setProjectLoading(false);
@@ -338,6 +440,67 @@ export function AppBuilder() {
       projectRequestRef.current?.abort();
     };
   }, [loadWorkspace]);
+
+  useEffect(() => {
+    if (!recoveringRequestId || !project) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      try {
+        const snapshot = projectSnapshotSchema.parse(
+          await projectJson(
+            await fetch(`/api/projects/${project!.id}?view=status`, {
+              cache: "no-store",
+              signal: AbortSignal.any([
+                controller.signal,
+                AbortSignal.timeout(35000),
+              ]),
+            }),
+          ),
+        );
+        if (controller.signal.aborted) return;
+        const message = snapshot.messages.find(
+          (item) =>
+            item.request_id === recoveringRequestId &&
+            item.role === "assistant",
+        );
+        setMessages(
+          snapshot.messages.map((item) => ({
+            id: item.id,
+            role: item.role,
+            content: item.content,
+            saved: true,
+            plan: item.plan,
+          })),
+        );
+        if (message?.status === "processing") {
+          setActiveStep(message.phase ?? 0);
+          timer = setTimeout(() => void poll(), 2000);
+        } else {
+          setRecoveringRequestId(null);
+          setIsRunning(false);
+          setRestoringVersionId(null);
+          void loadWorkspace(project!.id);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setRecoveringRequestId(null);
+          setIsRunning(false);
+          setRestoringVersionId(null);
+          setStorageError(
+            error instanceof Error
+              ? error.message
+              : "Could not recover the running request. Retry loading to check its saved result.",
+          );
+        }
+      }
+    }
+    timer = setTimeout(() => void poll(), 1000);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [recoveringRequestId, project, loadWorkspace]);
 
   useEffect(() => {
     if (hasStarted && !wasStartedRef.current) workHeadingRef.current?.focus();
@@ -396,10 +559,21 @@ export function AppBuilder() {
 
   useEffect(() => {
     const chat = chatScrollRef.current;
-    if (chat && followChatRef.current && (messages.length || isRunning)) {
+    if (
+      chat &&
+      (followChatRef.current || generationError) &&
+      (messages.length || isRunning)
+    ) {
       chat.scrollTo({ top: chat.scrollHeight, behavior: "auto" });
     }
-  }, [messages, isRunning, generationError, activeStep, workspaceTab]);
+  }, [
+    messages,
+    isRunning,
+    generationError,
+    activeStep,
+    workspaceTab,
+    previewReady,
+  ]);
 
   function mergeMessage(message: ProjectMessage) {
     const next: Message = {
@@ -407,12 +581,16 @@ export function AppBuilder() {
       role: message.role,
       content: message.content,
       saved: true,
+      plan: message.plan,
     };
-    setMessages((previous) =>
-      previous.some((item) => item.id === next.id)
-        ? previous.map((item) => (item.id === next.id ? next : item))
-        : [...previous, next],
-    );
+    setMessages((previous) => {
+      const retained = previous.filter(
+        (item) => item.id !== `local-error:${message.request_id}`,
+      );
+      return retained.some((item) => item.id === next.id)
+        ? retained.map((item) => (item.id === next.id ? next : item))
+        : [...retained, next];
+    });
   }
 
   async function createProjectRecord(signal?: AbortSignal) {
@@ -434,26 +612,39 @@ export function AppBuilder() {
     if (inputDisabled || projectRequestRef.current) return;
     const controller = new AbortController();
     projectRequestRef.current = controller;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 35000);
     setProjectLoading(true);
     setStorageError(null);
+    setProjectNotice(null);
     try {
       const created = await createProjectRecord(controller.signal);
-      if (controller.signal.aborted) return;
+      controller.signal.throwIfAborted();
       clearWorkspace();
       setProject(created);
+      displayedProjectIdRef.current = created.id;
       setProjects((previous) => [created, ...previous]);
       setProjectName("");
       projectUrl(created.id);
       loadTargetRef.current = created.id;
       promptRef.current?.focus();
     } catch (error) {
-      if (!controller.signal.aborted)
+      if (
+        projectRequestRef.current === controller &&
+        (timedOut || !controller.signal.aborted)
+      )
         setStorageError(
-          error instanceof Error
-            ? error.message
-            : "Could not create the project. Please retry.",
+          timedOut
+            ? "Creating the project timed out. Reload projects to check whether it was saved before trying again."
+            : error instanceof Error
+              ? error.message
+              : "Could not create the project. Please retry.",
         );
     } finally {
+      clearTimeout(timer);
       if (projectRequestRef.current === controller) {
         projectRequestRef.current = null;
         setProjectLoading(false);
@@ -478,6 +669,7 @@ export function AppBuilder() {
     setRestoreError(null);
     setStorageError(null);
     setActiveStep(0);
+    setFreshVersionId(null);
     setIsRunning(true);
     let completed = false;
     let failureSaved = false;
@@ -489,6 +681,7 @@ export function AppBuilder() {
       if (requestRef.current !== controller) return;
       if (!project) {
         setProject(currentProject);
+        displayedProjectIdRef.current = currentProject.id;
         setProjects((previous) => [currentProject, ...previous]);
         setProjectName("");
         projectUrl(currentProject.id, true);
@@ -540,6 +733,15 @@ export function AppBuilder() {
             : "Generation failed. Please try again.",
         );
       }
+      if (response.status === 202) {
+        const pending = pendingGenerationSchema.parse(await response.json());
+        mergeMessage(pending.userMessage);
+        mergeMessage(pending.message);
+        setActiveStep(pending.message.phase ?? 0);
+        setRecoveringRequestId(pending.message.request_id);
+        requestRef.current = null;
+        return;
+      }
       if (
         !response.body ||
         !response.headers.get("content-type")?.includes("application/x-ndjson")
@@ -570,7 +772,11 @@ export function AppBuilder() {
         if (event.type === "status") setActiveStep(event.step);
         if (event.type === "message") {
           mergeMessage(event.message);
-          if (event.message.role === "assistant") failureSaved = true;
+          if (
+            event.message.role === "assistant" &&
+            event.message.status === "failed"
+          )
+            failureSaved = true;
         }
         if (event.type === "error") {
           errorCode = event.code;
@@ -591,6 +797,7 @@ export function AppBuilder() {
           ]);
           mergeMessage(event.saved.message);
           showVersion(version);
+          setFreshVersionId(version.id);
           setActiveStep(5);
           completed = true;
         }
@@ -633,16 +840,18 @@ export function AppBuilder() {
         ["PROJECT_CHANGED", "PROJECT_NOT_FOUND"].includes(errorCode)
       )
         setStorageError(message);
-      if (attempt && !failureSaved)
+      if (attempt && !failureSaved) {
+        const localErrorId = `local-error:${attempt.id}`;
         setMessages((previous) => [
-          ...previous,
+          ...previous.filter((item) => item.id !== localErrorId),
           {
-            id: crypto.randomUUID(),
+            id: localErrorId,
             role: "assistant",
             content: message,
             saved: false,
           },
         ]);
+      }
     } finally {
       clearTimeout(timer);
       if (requestRef.current === controller) {
@@ -652,17 +861,77 @@ export function AppBuilder() {
     }
   }
 
+  async function deleteProject() {
+    if (!deleteTarget || inputDisabled || projectRequestRef.current) return;
+    const target = deleteTarget;
+    const controller = new AbortController();
+    projectRequestRef.current = controller;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 35000);
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(
+        `/api/projects/${encodeURIComponent(target.id)}`,
+        {
+          method: "DELETE",
+          signal: controller.signal,
+        },
+      );
+      if (!response.ok) await projectJson(response);
+      controller.signal.throwIfAborted();
+      setProjects((previous) =>
+        previous.filter((item) => item.id !== target.id),
+      );
+      if (displayedProjectIdRef.current === target.id) {
+        clearWorkspace();
+        setProject(null);
+        displayedProjectIdRef.current = null;
+        loadTargetRef.current = null;
+        setProjectName("");
+        setStorageError(null);
+        projectUrl(null, true);
+      }
+      setDeleteTarget(null);
+      setProjectNotice(`“${target.name}” was deleted.`);
+      requestAnimationFrame(() => promptRef.current?.focus());
+    } catch (error) {
+      if (
+        projectRequestRef.current === controller &&
+        (timedOut || !controller.signal.aborted)
+      )
+        setDeleteError(
+          timedOut
+            ? "Deletion could not be confirmed. Cancel and reload projects to check before retrying."
+            : error instanceof Error
+              ? error.message
+              : "Could not delete the project. Please retry.",
+        );
+    } finally {
+      clearTimeout(timer);
+      if (projectRequestRef.current === controller)
+        projectRequestRef.current = null;
+      setIsDeleting(false);
+    }
+  }
+
   function startNewApp() {
     if (inputDisabled) return;
     clearWorkspace();
     setProject(null);
+    displayedProjectIdRef.current = null;
     setProjectName("");
     setStorageError(null);
+    setProjectNotice(null);
     loadTargetRef.current = null;
     projectUrl(null);
   }
 
   function reloadPreview() {
+    setFreshVersionId(null);
     previewSettledRef.current = false;
     setPreviewReady(false);
     setPreviewError(null);
@@ -697,20 +966,25 @@ export function AppBuilder() {
     setRestoreError(null);
     const timer = setTimeout(() => controller.abort(), 90000);
     try {
-      const saved = restoredVersionSchema.parse(
-        await projectJson(
-          await fetch(`/api/projects/${project.id}/restore`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              versionId: attempt.versionId,
-              requestId: attempt.id,
-              baseVersionId: attempt.baseVersionId,
-            }),
-            signal: controller.signal,
-          }),
-        ),
-      );
+      const response = await fetch(`/api/projects/${project.id}/restore`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          versionId: attempt.versionId,
+          requestId: attempt.id,
+          baseVersionId: attempt.baseVersionId,
+        }),
+        signal: controller.signal,
+      });
+      if (response.status === 202) {
+        const pending = pendingGenerationSchema.parse(await response.json());
+        mergeMessage(pending.userMessage);
+        mergeMessage(pending.message);
+        setRecoveringRequestId(pending.message.request_id);
+        requestRef.current = null;
+        return;
+      }
+      const saved = restoredVersionSchema.parse(await projectJson(response));
       if (requestRef.current !== controller) return;
       const next = toAppVersion(saved.version);
       setVersions((previous) =>
@@ -813,8 +1087,11 @@ export function AppBuilder() {
           <span className="project-icon">
             <Compass size={15} />
           </span>
-          <span className="project-name" title={project?.name || "New project"}>
-            {project?.name || "New project"}
+          <span
+            className="project-name"
+            title={project ? projectLabel(project) : "New project"}
+          >
+            {project ? projectLabel(project) : "New project"}
           </span>
           <span className="project-label">Project</span>
         </div>
@@ -823,15 +1100,17 @@ export function AppBuilder() {
             <span className="status-dot" />
             {projectLoading
               ? "Loading projects…"
-              : isRestoring
-                ? "Saving restored version…"
-                : isRunning
-                  ? "Saving as you build"
-                  : storageError
-                    ? "Storage unavailable"
-                    : project
-                      ? "Saved to Supabase"
-                      : "Ready to create"}
+              : isDeleting
+                ? "Deleting project…"
+                : isRestoring
+                  ? "Saving restored version…"
+                  : isRunning
+                    ? "Saving as you build"
+                    : storageError
+                      ? "Storage unavailable"
+                      : project
+                        ? "Saved"
+                        : "Ready to create"}
           </span>
           {(hasStarted || project) && (
             <button
@@ -848,69 +1127,85 @@ export function AppBuilder() {
           </span>
         </div>
       </header>
-      <div className="project-toolbar" aria-label="Project controls">
-        <div className="project-picker">
-          <label htmlFor="saved-project">Open project</label>
-          <select
-            id="saved-project"
-            value={project?.id || ""}
-            disabled={inputDisabled}
-            onChange={(event) => {
-              const id = event.target.value;
-              if (!id) {
-                startNewApp();
-                return;
+      <ProjectControls
+        key={hasStarted ? "working" : "entry"}
+        working={hasStarted}
+      >
+        <div className="project-toolbar" aria-label="Project controls">
+          <div className="project-picker">
+            <label htmlFor="saved-project">Open project</label>
+            <select
+              id="saved-project"
+              value={project?.id || ""}
+              disabled={inputDisabled}
+              onChange={(event) => {
+                const id = event.target.value;
+                if (!id) {
+                  startNewApp();
+                  return;
+                }
+                void loadWorkspace(id, false);
+              }}
+            >
+              <option value="">Choose a saved project</option>
+              {projects.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {projectLabel(item)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Reload projects"
+              disabled={inputDisabled}
+              onClick={() =>
+                void loadWorkspace(project?.id || loadTargetRef.current)
               }
-              projectUrl(id);
-              void loadWorkspace(id);
+            >
+              <RotateCcw size={15} />
+            </button>
+            <button
+              ref={deleteButtonRef}
+              type="button"
+              className="project-delete-button"
+              disabled={!project || inputDisabled}
+              onClick={() => {
+                setDeleteError(null);
+                setDeleteTarget(project);
+              }}
+            >
+              <Trash2 size={15} aria-hidden="true" /> Delete project
+            </button>
+          </div>
+          <form
+            className="project-create"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void createNamedProject();
             }}
           >
-            <option value="">Choose a saved project</option>
-            {projects.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Reload projects"
-            disabled={inputDisabled}
-            onClick={() =>
-              void loadWorkspace(project?.id || loadTargetRef.current)
-            }
-          >
-            <RotateCcw size={15} />
-          </button>
+            <label htmlFor="project-name" className="sr-only">
+              New project name
+            </label>
+            <input
+              id="project-name"
+              value={projectName}
+              onChange={(event) => setProjectName(event.target.value)}
+              maxLength={120}
+              placeholder="Name a new project"
+              disabled={inputDisabled}
+            />
+            <button
+              type="submit"
+              className="new-app-button"
+              disabled={inputDisabled}
+            >
+              <Plus size={14} /> Create project
+            </button>
+          </form>
         </div>
-        <form
-          className="project-create"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void createNamedProject();
-          }}
-        >
-          <label htmlFor="project-name" className="sr-only">
-            New project name
-          </label>
-          <input
-            id="project-name"
-            value={projectName}
-            onChange={(event) => setProjectName(event.target.value)}
-            maxLength={120}
-            placeholder="Name a new project"
-            disabled={inputDisabled}
-          />
-          <button
-            type="submit"
-            className="new-app-button"
-            disabled={inputDisabled}
-          >
-            <Plus size={14} /> Create project
-          </button>
-        </form>
-      </div>
+      </ProjectControls>
       {storageError && (
         <div className="storage-error" role="alert">
           <AlertCircle size={18} />
@@ -961,9 +1256,72 @@ export function AppBuilder() {
           >
             <Monitor size={15} />
             Preview
+            {previewError && (
+              <span className="workspace-tab-error">
+                <AlertCircle size={14} aria-hidden="true" /> Error
+              </span>
+            )}
           </button>
         </div>
       )}
+      {projectNotice && (
+        <p className="project-notice" role="status">
+          {projectNotice}
+        </p>
+      )}
+      <dialog
+        ref={deleteDialogRef}
+        className="delete-project-dialog"
+        aria-labelledby="delete-project-title"
+        aria-describedby="delete-project-name delete-project-description"
+        aria-busy={isDeleting}
+        onCancel={(event) => {
+          if (isDeleting) event.preventDefault();
+        }}
+        onClose={() => {
+          setDeleteTarget(null);
+          if (displayedProjectIdRef.current) deleteButtonRef.current?.focus();
+        }}
+      >
+        <h2 id="delete-project-title">Delete project?</h2>
+        <p id="delete-project-name" className="delete-project-name">
+          {deleteTarget && projectLabel(deleteTarget)}
+        </p>
+        <p id="delete-project-description">
+          This permanently deletes this project, its chat and all saved
+          versions. This cannot be undone.
+        </p>
+        {deleteError && (
+          <p className="delete-project-error" role="alert">
+            {deleteError}
+          </p>
+        )}
+        <div className="delete-project-actions">
+          <button
+            ref={deleteCancelRef}
+            type="button"
+            disabled={isDeleting}
+            onClick={() => setDeleteTarget(null)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="confirm-delete-button"
+            disabled={isDeleting}
+            onClick={() => void deleteProject()}
+          >
+            {isDeleting && (
+              <LoaderCircle
+                size={16}
+                className="animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            {isDeleting ? "Deleting…" : "Delete project"}
+          </button>
+        </div>
+      </dialog>
       <main
         className={`workspace ${hasStarted ? "workspace-working" : "workspace-start"}`}
       >
@@ -978,13 +1336,8 @@ export function AppBuilder() {
                   <Sparkles size={15} />
                 </span>
                 <h2>Agent Chat</h2>
-                <span
-                  className="agent-status"
-                  data-state={
-                    isRunning ? "working" : generationError ? "error" : "ready"
-                  }
-                >
-                  {isRunning ? "Working" : generationError ? "Error" : "Ready"}
+                <span className="agent-status" data-state={status.tone}>
+                  {status.label}
                 </span>
               </div>
               <PanelLeft size={16} className="muted-icon" aria-hidden="true" />
@@ -992,9 +1345,20 @@ export function AppBuilder() {
           )}
           {!hasStarted && (
             <div className="start-intro">
-              <span className="start-mark" aria-hidden="true">
-                <Layers2 size={28} strokeWidth={1.8} />
-              </span>
+              <div className="start-signal">
+                <GenerationField
+                  variant="entry"
+                  activity={isRunning ? "working" : "idle"}
+                  phase={Math.max(activeStep, 0)}
+                  engagement={
+                    Math.min(prompt.length / 140, 1) * 0.55 +
+                    (composerFocused ? 0.45 : 0)
+                  }
+                />
+                <span className="start-mark" aria-hidden="true">
+                  <Layers2 size={28} strokeWidth={1.8} />
+                </span>
+              </div>
               <h1>
                 Ideas become interfaces<span>.</span>
               </h1>
@@ -1044,17 +1408,27 @@ export function AppBuilder() {
                       )}
                     </div>
                     <p>{message.content}</p>
+                    {Boolean(message.plan?.length) && (
+                      <ol
+                        className="message-plan"
+                        aria-label="Implementation plan"
+                      >
+                        {message.plan!.map((step, index) => (
+                          <li key={index}>{step}</li>
+                        ))}
+                      </ol>
+                    )}
                   </article>
                 ))}
               </div>
               <div
                 className="progress-card"
                 aria-label="Agent progress"
-                aria-busy={isRunning}
+                aria-busy={isRunning || isRestoring}
                 data-state={
-                  isRunning
+                  isRunning || isRestoring
                     ? "working"
-                    : generationError
+                    : generationError || previewError
                       ? "failed"
                       : preview
                         ? "complete"
@@ -1062,35 +1436,36 @@ export function AppBuilder() {
                 }
               >
                 <p className="sr-only" role="status">
-                  {isRunning
-                    ? steps[activeStep]
-                    : generationError
-                      ? "Generation failed"
-                      : preview
-                        ? "Completed — application generated"
-                        : "Ready for a description"}
+                  {isRunning ? steps[activeStep] : status.announcement}
                 </p>
-                <div className="progress-heading">
-                  <span>
-                    <WandSparkles size={13} />
-                    {isRunning
-                      ? preview
-                        ? "Updating your application"
-                        : "Bringing your idea to life"
-                      : generationError
-                        ? "Generation failed"
-                        : preview
-                          ? "Application ready"
-                          : "Ready when you are"}
-                  </span>
-                  <span className="progress-caption">
-                    {preview
-                      ? isRunning
-                        ? `Creating v${versions.length + 1}`
-                        : `v${preview.versionNumber}`
-                      : "First generation"}
-                  </span>
-                </div>
+                {preview &&
+                previewReady &&
+                !previewError &&
+                !isRunning &&
+                !isRestoring &&
+                !generationError &&
+                !isHistorical ? (
+                  <AppReadyMoment
+                    key={preview.versionId}
+                    title={preview.app.title}
+                    versionNumber={preview.versionNumber}
+                    fresh={freshVersionId === preview.versionId}
+                  />
+                ) : (
+                  <div className="progress-heading">
+                    <span>
+                      <WandSparkles size={13} />
+                      {status.heading}
+                    </span>
+                    <span className="progress-caption">
+                      {preview
+                        ? isRunning
+                          ? `Creating v${versions.length + 1}`
+                          : `v${preview.versionNumber}`
+                        : "First generation"}
+                    </span>
+                  </div>
+                )}
                 {activeStep >= 0 &&
                   (isRunning ? (
                     progressSteps
@@ -1126,6 +1501,11 @@ export function AppBuilder() {
           )}
           <form
             className="composer-area"
+            onFocusCapture={() => setComposerFocused(true)}
+            onBlurCapture={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget))
+                setComposerFocused(false);
+            }}
             onSubmit={(event) => {
               event.preventDefault();
               void submitPrompt();
@@ -1138,6 +1518,7 @@ export function AppBuilder() {
               <textarea
                 ref={promptRef}
                 id="prompt"
+                aria-describedby={!hasStarted ? "app-capabilities" : undefined}
                 value={prompt}
                 maxLength={4000}
                 disabled={generationDisabled}
@@ -1160,11 +1541,6 @@ export function AppBuilder() {
                 }}
               />
               <div className="composer-footer">
-                <span className="composer-model">
-                  <span className="status-dot" />
-                  {preview?.model || "App Generator"}
-                  <ChevronDown size={11} />
-                </span>
                 <button
                   type="submit"
                   className="send-button"
@@ -1183,6 +1559,12 @@ export function AppBuilder() {
                 </button>
               </div>
             </div>
+            {!hasStarted && (
+              <p id="app-capabilities" className="app-capabilities">
+                Create a single-page app that runs offline in your browser.
+                Project code is saved; preview data resets on reload.
+              </p>
+            )}
             <div className="composer-hint">
               <span>
                 {isHistorical ? (
@@ -1217,6 +1599,7 @@ export function AppBuilder() {
                     <button
                       key={example.label}
                       type="button"
+                      data-selected={prompt === example.prompt}
                       disabled={generationDisabled}
                       onClick={() => {
                         setPrompt(example.prompt);
@@ -1229,7 +1612,17 @@ export function AppBuilder() {
                           <span className="example-copy">
                             <strong>{example.label}</strong>
                             <span>
-                              Use idea <ArrowRight size={13} />
+                              {prompt === example.prompt ? (
+                                <>
+                                  Added to prompt{" "}
+                                  <Check size={13} aria-hidden="true" />
+                                </>
+                              ) : (
+                                <>
+                                  Use idea{" "}
+                                  <ArrowRight size={13} aria-hidden="true" />
+                                </>
+                              )}
                             </span>
                           </span>
                         </>
@@ -1404,14 +1797,44 @@ export function AppBuilder() {
             )}
             {previewError && (
               <div className="preview-error" role="alert">
-                <AlertCircle size={14} />
-                <span>Preview runtime error: {previewError}</span>
+                <AlertCircle size={14} aria-hidden="true" />
+                <div className="preview-error-copy">
+                  <strong>Preview could not run</strong>
+                  <p>
+                    Reload once. If it still fails, describe the problem in
+                    Agent Chat
+                    {versions.length > 1
+                      ? ", or preview an earlier version in Version History."
+                      : "."}
+                  </p>
+                  <details className="preview-error-details">
+                    <summary>
+                      Technical details{" "}
+                      <ChevronDown size={13} aria-hidden="true" />
+                    </summary>
+                    <p>{previewError}</p>
+                  </details>
+                </div>
                 <button type="button" onClick={reloadPreview}>
                   Reload
                 </button>
               </div>
             )}
             <div className="preview-canvas">
+              <GenerationField
+                variant="preview"
+                activity={
+                  isRunning
+                    ? "working"
+                    : generationError
+                      ? "error"
+                      : preview
+                        ? "complete"
+                        : "idle"
+                }
+                phase={Math.max(activeStep, 0)}
+                engagement={isRunning ? 0.85 : 0}
+              />
               {preview ? (
                 <div
                   className={`preview-frame ${device === "mobile" ? "preview-mobile" : "preview-desktop"}`}
@@ -1424,9 +1847,8 @@ export function AppBuilder() {
                     </span>
                     <span className="browser-address">
                       <span className="address-dot" />
-                      generated.app / preview
+                      {preview.app.title}
                     </span>
-                    <SquareArrowOutUpRight size={11} aria-hidden="true" />
                   </div>
                   <iframe
                     ref={iframeRef}
@@ -1457,12 +1879,6 @@ export function AppBuilder() {
                   )}
                 </div>
               )}
-              <p className="preview-footnote">
-                <Sparkles size={12} />
-                {preview
-                  ? "AI-generated browser app · isolated preview"
-                  : "HTML + CSS + JavaScript · no setup required"}
-              </p>
             </div>
             <div className="preview-statusbar">
               <span>
@@ -1479,24 +1895,15 @@ export function AppBuilder() {
                         ? "Loading preview"
                         : "Waiting for an idea"}
               </span>
-              <span>
-                {device === "desktop"
-                  ? "Desktop · responsive"
-                  : "Mobile · up to 375px"}
-                <span className="statusbar-divider">/</span>HTML · CSS ·
-                JavaScript
-              </span>
+              {preview && (
+                <span className="preview-data-note">
+                  Project code is saved; preview data resets on reload.
+                </span>
+              )}
             </div>
           </section>
         )}
       </main>
-      <footer className="app-footer">
-        <span>From a spark to something real.</span>
-        <span>
-          Phase 5 <span aria-hidden="true">·</span> Version history
-          <span className="footer-diamond">✧</span>
-        </span>
-      </footer>
     </div>
   );
 }

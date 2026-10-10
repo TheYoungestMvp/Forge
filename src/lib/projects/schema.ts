@@ -16,6 +16,14 @@ export const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string(),
   created_at: z.string(),
+  status: z.enum(["processing", "completed", "failed"]).nullable().optional(),
+  phase: z.number().int().min(0).max(4).optional(),
+  plan: z.array(z.string().min(1).max(220)).max(4).optional(),
+  error_code: z.string().nullable().optional(),
+  base_version_id: z.uuid().nullable().optional(),
+  deadline_at: z.string().nullable().optional(),
+  operation: z.enum(["generate", "restore"]).optional(),
+  source_version_id: z.uuid().nullable().optional(),
 });
 
 export const versionSchema = z.object({

@@ -1,0 +1,1127 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-10T09:49:30.734Z",
+  "title": "Design System: Forge",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "深绿墨",
+        "canonical": "#27312d",
+        "tonalRamp": [
+          "oklch(15.00% 0.00772 169.07)",
+          "oklch(26.43% 0.01360 169.07)",
+          "oklch(37.86% 0.01544 169.07)",
+          "oklch(49.29% 0.01544 169.07)",
+          "oklch(60.71% 0.01544 169.07)",
+          "oklch(72.14% 0.01544 169.07)",
+          "oklch(83.57% 0.01544 169.07)",
+          "oklch(95.00% 0.00515 169.07)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "muted",
+        "canonical": "#89938e",
+        "tonalRamp": [
+          "oklch(15.00% 0.00684 164.58)",
+          "oklch(26.43% 0.01206 164.58)",
+          "oklch(37.86% 0.01369 164.58)",
+          "oklch(49.29% 0.01369 164.58)",
+          "oklch(60.71% 0.01369 164.58)",
+          "oklch(72.14% 0.01369 164.58)",
+          "oklch(83.57% 0.01369 164.58)",
+          "oklch(95.00% 0.00456 164.58)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "雾灰分隔线",
+        "canonical": "#e7eae6",
+        "tonalRamp": [
+          "oklch(15.00% 0.00311 137.77)",
+          "oklch(26.43% 0.00547 137.77)",
+          "oklch(37.86% 0.00621 137.77)",
+          "oklch(49.29% 0.00621 137.77)",
+          "oklch(60.71% 0.00621 137.77)",
+          "oklch(72.14% 0.00621 137.77)",
+          "oklch(83.57% 0.00621 137.77)",
+          "oklch(95.00% 0.00207 137.77)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "苔绿",
+        "canonical": "#567e64",
+        "tonalRamp": [
+          "oklch(15.00% 0.03019 155.43)",
+          "oklch(26.43% 0.05319 155.43)",
+          "oklch(37.86% 0.06038 155.43)",
+          "oklch(49.29% 0.06038 155.43)",
+          "oklch(60.71% 0.06038 155.43)",
+          "oklch(72.14% 0.06038 155.43)",
+          "oklch(83.57% 0.06038 155.43)",
+          "oklch(95.00% 0.02013 155.43)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "浅灰绿画布",
+        "canonical": "#f4f5f1",
+        "tonalRamp": [
+          "oklch(15.00% 0.00269 117.92)",
+          "oklch(26.43% 0.00475 117.92)",
+          "oklch(37.86% 0.00539 117.92)",
+          "oklch(49.29% 0.00539 117.92)",
+          "oklch(60.71% 0.00539 117.92)",
+          "oklch(72.14% 0.00539 117.92)",
+          "oklch(83.57% 0.00539 117.92)",
+          "oklch(95.00% 0.00180 117.92)"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "正文绿墨",
+        "canonical": "#54624e",
+        "tonalRamp": [
+          "oklch(15.00% 0.01790 136.31)",
+          "oklch(26.43% 0.03154 136.31)",
+          "oklch(37.86% 0.03580 136.31)",
+          "oklch(49.29% 0.03580 136.31)",
+          "oklch(60.71% 0.03580 136.31)",
+          "oklch(72.14% 0.03580 136.31)",
+          "oklch(83.57% 0.03580 136.31)",
+          "oklch(95.00% 0.01193 136.31)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "辅助绿墨",
+        "canonical": "#65715f",
+        "tonalRamp": [
+          "oklch(15.00% 0.01555 135.13)",
+          "oklch(26.43% 0.02739 135.13)",
+          "oklch(37.86% 0.03109 135.13)",
+          "oklch(49.29% 0.03109 135.13)",
+          "oklch(60.71% 0.03109 135.13)",
+          "oklch(72.14% 0.03109 135.13)",
+          "oklch(83.57% 0.03109 135.13)",
+          "oklch(95.00% 0.01036 135.13)"
+        ]
+      },
+      "text-error": {
+        "role": "semantic",
+        "displayName": "text-error",
+        "canonical": "#9a5e4c",
+        "tonalRamp": [
+          "oklch(15.00% 0.04190 37.47)",
+          "oklch(26.43% 0.07383 37.47)",
+          "oklch(37.86% 0.08381 37.47)",
+          "oklch(49.29% 0.08381 37.47)",
+          "oklch(60.71% 0.08381 37.47)",
+          "oklch(72.14% 0.08381 37.47)",
+          "oklch(83.57% 0.08381 37.47)",
+          "oklch(95.00% 0.02794 37.47)"
+        ]
+      },
+      "page": {
+        "role": "neutral",
+        "displayName": "雾白",
+        "canonical": "#f8f9f6",
+        "tonalRamp": [
+          "oklch(15.00% 0.00204 121.56)",
+          "oklch(26.43% 0.00360 121.56)",
+          "oklch(37.86% 0.00409 121.56)",
+          "oklch(49.29% 0.00409 121.56)",
+          "oklch(60.71% 0.00409 121.56)",
+          "oklch(72.14% 0.00409 121.56)",
+          "oklch(83.57% 0.00409 121.56)",
+          "oklch(95.00% 0.00136 121.56)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "操作白",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral",
+        "displayName": "surface-soft",
+        "canonical": "#fbfcf9",
+        "tonalRamp": [
+          "oklch(15.00% 0.00204 121.56)",
+          "oklch(26.43% 0.00359 121.56)",
+          "oklch(37.86% 0.00408 121.56)",
+          "oklch(49.29% 0.00408 121.56)",
+          "oklch(60.71% 0.00408 121.56)",
+          "oklch(72.14% 0.00408 121.56)",
+          "oklch(83.57% 0.00408 121.56)",
+          "oklch(95.00% 0.00136 121.56)"
+        ]
+      },
+      "surface-hover": {
+        "role": "neutral",
+        "displayName": "surface-hover",
+        "canonical": "#f3f6ed",
+        "tonalRamp": [
+          "oklch(15.00% 0.00614 121.70)",
+          "oklch(26.43% 0.01082 121.70)",
+          "oklch(37.86% 0.01229 121.70)",
+          "oklch(49.29% 0.01229 121.70)",
+          "oklch(60.71% 0.01229 121.70)",
+          "oklch(72.14% 0.01229 121.70)",
+          "oklch(83.57% 0.01229 121.70)",
+          "oklch(95.00% 0.00410 121.70)"
+        ]
+      },
+      "surface-success": {
+        "role": "neutral",
+        "displayName": "surface-success",
+        "canonical": "#edf3e7",
+        "tonalRamp": [
+          "oklch(15.00% 0.00855 128.66)",
+          "oklch(26.43% 0.01506 128.66)",
+          "oklch(37.86% 0.01709 128.66)",
+          "oklch(49.29% 0.01709 128.66)",
+          "oklch(60.71% 0.01709 128.66)",
+          "oklch(72.14% 0.01709 128.66)",
+          "oklch(83.57% 0.01709 128.66)",
+          "oklch(95.00% 0.00570 128.66)"
+        ]
+      },
+      "surface-selected": {
+        "role": "neutral",
+        "displayName": "surface-selected",
+        "canonical": "#eef3e8",
+        "tonalRamp": [
+          "oklch(15.00% 0.00774 126.82)",
+          "oklch(26.43% 0.01364 126.82)",
+          "oklch(37.86% 0.01548 126.82)",
+          "oklch(49.29% 0.01548 126.82)",
+          "oklch(60.71% 0.01548 126.82)",
+          "oklch(72.14% 0.01548 126.82)",
+          "oklch(83.57% 0.01548 126.82)",
+          "oklch(95.00% 0.00516 126.82)"
+        ]
+      },
+      "surface-status": {
+        "role": "neutral",
+        "displayName": "surface-status",
+        "canonical": "#f1f5ed",
+        "tonalRamp": [
+          "oklch(15.00% 0.00569 128.59)",
+          "oklch(26.43% 0.01002 128.59)",
+          "oklch(37.86% 0.01138 128.59)",
+          "oklch(49.29% 0.01138 128.59)",
+          "oklch(60.71% 0.01138 128.59)",
+          "oklch(72.14% 0.01138 128.59)",
+          "oklch(83.57% 0.01138 128.59)",
+          "oklch(95.00% 0.00379 128.59)"
+        ]
+      },
+      "surface-working": {
+        "role": "neutral",
+        "displayName": "surface-working",
+        "canonical": "#e5efde",
+        "tonalRamp": [
+          "oklch(15.00% 0.01247 132.13)",
+          "oklch(26.43% 0.02197 132.13)",
+          "oklch(37.86% 0.02494 132.13)",
+          "oklch(49.29% 0.02494 132.13)",
+          "oklch(60.71% 0.02494 132.13)",
+          "oklch(72.14% 0.02494 132.13)",
+          "oklch(83.57% 0.02494 132.13)",
+          "oklch(95.00% 0.00831 132.13)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "surface-muted",
+        "canonical": "#eceee7",
+        "tonalRamp": [
+          "oklch(15.00% 0.00477 119.58)",
+          "oklch(26.43% 0.00840 119.58)",
+          "oklch(37.86% 0.00953 119.58)",
+          "oklch(49.29% 0.00953 119.58)",
+          "oklch(60.71% 0.00953 119.58)",
+          "oklch(72.14% 0.00953 119.58)",
+          "oklch(83.57% 0.00953 119.58)",
+          "oklch(95.00% 0.00318 119.58)"
+        ]
+      },
+      "surface-device": {
+        "role": "neutral",
+        "displayName": "surface-device",
+        "canonical": "#f5f6f2",
+        "tonalRamp": [
+          "oklch(15.00% 0.00269 117.92)",
+          "oklch(26.43% 0.00474 117.92)",
+          "oklch(37.86% 0.00538 117.92)",
+          "oklch(49.29% 0.00538 117.92)",
+          "oklch(60.71% 0.00538 117.92)",
+          "oklch(72.14% 0.00538 117.92)",
+          "oklch(83.57% 0.00538 117.92)",
+          "oklch(95.00% 0.00179 117.92)"
+        ]
+      },
+      "surface-error": {
+        "role": "semantic",
+        "displayName": "surface-error",
+        "canonical": "#fff9f6",
+        "tonalRamp": [
+          "oklch(15.00% 0.00379 48.66)",
+          "oklch(26.43% 0.00668 48.66)",
+          "oklch(37.86% 0.00758 48.66)",
+          "oklch(49.29% 0.00758 48.66)",
+          "oklch(60.71% 0.00758 48.66)",
+          "oklch(72.14% 0.00758 48.66)",
+          "oklch(83.57% 0.00758 48.66)",
+          "oklch(95.00% 0.00253 48.66)"
+        ]
+      },
+      "surface-error-icon": {
+        "role": "semantic",
+        "displayName": "surface-error-icon",
+        "canonical": "#faebe3",
+        "tonalRamp": [
+          "oklch(15.00% 0.00979 50.15)",
+          "oklch(26.43% 0.01724 50.15)",
+          "oklch(37.86% 0.01957 50.15)",
+          "oklch(49.29% 0.01957 50.15)",
+          "oklch(60.71% 0.01957 50.15)",
+          "oklch(72.14% 0.01957 50.15)",
+          "oklch(83.57% 0.01957 50.15)",
+          "oklch(95.00% 0.00652 50.15)"
+        ]
+      },
+      "brand-surface": {
+        "role": "primary",
+        "displayName": "brand-surface",
+        "canonical": "#263c31",
+        "tonalRamp": [
+          "oklch(15.00% 0.01704 162.09)",
+          "oklch(26.43% 0.03002 162.09)",
+          "oklch(37.86% 0.03407 162.09)",
+          "oklch(49.29% 0.03407 162.09)",
+          "oklch(60.71% 0.03407 162.09)",
+          "oklch(72.14% 0.03407 162.09)",
+          "oklch(83.57% 0.03407 162.09)",
+          "oklch(95.00% 0.01136 162.09)"
+        ]
+      },
+      "brand-label": {
+        "role": "primary",
+        "displayName": "brand-label",
+        "canonical": "#d1e7c9",
+        "tonalRamp": [
+          "oklch(15.00% 0.02326 137.32)",
+          "oklch(26.43% 0.04098 137.32)",
+          "oklch(37.86% 0.04652 137.32)",
+          "oklch(49.29% 0.04652 137.32)",
+          "oklch(60.71% 0.04652 137.32)",
+          "oklch(72.14% 0.04652 137.32)",
+          "oklch(83.57% 0.04652 137.32)",
+          "oklch(95.00% 0.01551 137.32)"
+        ]
+      },
+      "brand-punctuation": {
+        "role": "primary",
+        "displayName": "brand-punctuation",
+        "canonical": "#73976c",
+        "tonalRamp": [
+          "oklch(15.00% 0.03724 140.48)",
+          "oklch(26.43% 0.06561 140.48)",
+          "oklch(37.86% 0.07447 140.48)",
+          "oklch(49.29% 0.07447 140.48)",
+          "oklch(60.71% 0.07447 140.48)",
+          "oklch(72.14% 0.07447 140.48)",
+          "oklch(83.57% 0.07447 140.48)",
+          "oklch(95.00% 0.02482 140.48)"
+        ]
+      },
+      "send": {
+        "role": "primary",
+        "displayName": "动作苔绿",
+        "canonical": "#4f7256",
+        "tonalRamp": [
+          "oklch(15.00% 0.02976 150.11)",
+          "oklch(26.43% 0.05244 150.11)",
+          "oklch(37.86% 0.05953 150.11)",
+          "oklch(49.29% 0.05953 150.11)",
+          "oklch(60.71% 0.05953 150.11)",
+          "oklch(72.14% 0.05953 150.11)",
+          "oklch(83.57% 0.05953 150.11)",
+          "oklch(95.00% 0.01984 150.11)"
+        ]
+      },
+      "send-hover": {
+        "role": "primary",
+        "displayName": "深动作苔绿",
+        "canonical": "#3e6345",
+        "tonalRamp": [
+          "oklch(15.00% 0.03225 149.33)",
+          "oklch(26.43% 0.05682 149.33)",
+          "oklch(37.86% 0.06450 149.33)",
+          "oklch(49.29% 0.06450 149.33)",
+          "oklch(60.71% 0.06450 149.33)",
+          "oklch(72.14% 0.06450 149.33)",
+          "oklch(83.57% 0.06450 149.33)",
+          "oklch(95.00% 0.02150 149.33)"
+        ]
+      },
+      "send-label": {
+        "role": "primary",
+        "displayName": "浅绿按钮文字",
+        "canonical": "#f0f5ea",
+        "tonalRamp": [
+          "oklch(15.00% 0.00773 126.82)",
+          "oklch(26.43% 0.01361 126.82)",
+          "oklch(37.86% 0.01545 126.82)",
+          "oklch(49.29% 0.01545 126.82)",
+          "oklch(60.71% 0.01545 126.82)",
+          "oklch(72.14% 0.01545 126.82)",
+          "oklch(83.57% 0.01545 126.82)",
+          "oklch(95.00% 0.00515 126.82)"
+        ]
+      },
+      "disabled-surface": {
+        "role": "neutral",
+        "displayName": "禁用灰绿底",
+        "canonical": "#e9eee1",
+        "tonalRamp": [
+          "oklch(15.00% 0.00902 123.98)",
+          "oklch(26.43% 0.01590 123.98)",
+          "oklch(37.86% 0.01805 123.98)",
+          "oklch(49.29% 0.01805 123.98)",
+          "oklch(60.71% 0.01805 123.98)",
+          "oklch(72.14% 0.01805 123.98)",
+          "oklch(83.57% 0.01805 123.98)",
+          "oklch(95.00% 0.00602 123.98)"
+        ]
+      },
+      "disabled-label": {
+        "role": "neutral",
+        "displayName": "禁用灰绿字",
+        "canonical": "#aab49e",
+        "tonalRamp": [
+          "oklch(15.00% 0.01635 127.17)",
+          "oklch(26.43% 0.02881 127.17)",
+          "oklch(37.86% 0.03270 127.17)",
+          "oklch(49.29% 0.03270 127.17)",
+          "oklch(60.71% 0.03270 127.17)",
+          "oklch(72.14% 0.03270 127.17)",
+          "oklch(83.57% 0.03270 127.17)",
+          "oklch(95.00% 0.01090 127.17)"
+        ]
+      },
+      "danger-action": {
+        "role": "semantic",
+        "displayName": "danger-action",
+        "canonical": "#8d4838",
+        "tonalRamp": [
+          "oklch(15.00% 0.04875 34.18)",
+          "oklch(26.43% 0.08589 34.18)",
+          "oklch(37.86% 0.09750 34.18)",
+          "oklch(49.29% 0.09750 34.18)",
+          "oklch(60.71% 0.09750 34.18)",
+          "oklch(72.14% 0.09750 34.18)",
+          "oklch(83.57% 0.09750 34.18)",
+          "oklch(95.00% 0.03250 34.18)"
+        ]
+      },
+      "danger-hover": {
+        "role": "semantic",
+        "displayName": "danger-hover",
+        "canonical": "#753b2f",
+        "tonalRamp": [
+          "oklch(15.00% 0.04211 32.88)",
+          "oklch(26.43% 0.07420 32.88)",
+          "oklch(37.86% 0.08423 32.88)",
+          "oklch(49.29% 0.08423 32.88)",
+          "oklch(60.71% 0.08423 32.88)",
+          "oklch(72.14% 0.08423 32.88)",
+          "oklch(83.57% 0.08423 32.88)",
+          "oklch(95.00% 0.02808 32.88)"
+        ]
+      },
+      "control-label": {
+        "role": "neutral",
+        "displayName": "工具灰绿",
+        "canonical": "#65715f",
+        "tonalRamp": [
+          "oklch(15.00% 0.01555 135.13)",
+          "oklch(26.43% 0.02739 135.13)",
+          "oklch(37.86% 0.03109 135.13)",
+          "oklch(49.29% 0.03109 135.13)",
+          "oklch(60.71% 0.03109 135.13)",
+          "oklch(72.14% 0.03109 135.13)",
+          "oklch(83.57% 0.03109 135.13)",
+          "oklch(95.00% 0.01036 135.13)"
+        ]
+      },
+      "selected-label": {
+        "role": "neutral",
+        "displayName": "选中绿",
+        "canonical": "#5a6e50",
+        "tonalRamp": [
+          "oklch(15.00% 0.02591 135.38)",
+          "oklch(26.43% 0.04566 135.38)",
+          "oklch(37.86% 0.05183 135.38)",
+          "oklch(49.29% 0.05183 135.38)",
+          "oklch(60.71% 0.05183 135.38)",
+          "oklch(72.14% 0.05183 135.38)",
+          "oklch(83.57% 0.05183 135.38)",
+          "oklch(95.00% 0.01728 135.38)"
+        ]
+      },
+      "text-working": {
+        "role": "neutral",
+        "displayName": "text-working",
+        "canonical": "#42694e",
+        "tonalRamp": [
+          "oklch(15.00% 0.03108 153.35)",
+          "oklch(26.43% 0.05476 153.35)",
+          "oklch(37.86% 0.06216 153.35)",
+          "oklch(49.29% 0.06216 153.35)",
+          "oklch(60.71% 0.06216 153.35)",
+          "oklch(72.14% 0.06216 153.35)",
+          "oklch(83.57% 0.06216 153.35)",
+          "oklch(95.00% 0.02072 153.35)"
+        ]
+      },
+      "icon-agent": {
+        "role": "neutral",
+        "displayName": "icon-agent",
+        "canonical": "#67846a",
+        "tonalRamp": [
+          "oklch(15.00% 0.02574 147.65)",
+          "oklch(26.43% 0.04535 147.65)",
+          "oklch(37.86% 0.05148 147.65)",
+          "oklch(49.29% 0.05148 147.65)",
+          "oklch(60.71% 0.05148 147.65)",
+          "oklch(72.14% 0.05148 147.65)",
+          "oklch(83.57% 0.05148 147.65)",
+          "oklch(95.00% 0.01716 147.65)"
+        ]
+      },
+      "icon-muted": {
+        "role": "neutral",
+        "displayName": "icon-muted",
+        "canonical": "#a1a99e",
+        "tonalRamp": [
+          "oklch(15.00% 0.00902 137.04)",
+          "oklch(26.43% 0.01589 137.04)",
+          "oklch(37.86% 0.01803 137.04)",
+          "oklch(49.29% 0.01803 137.04)",
+          "oklch(60.71% 0.01803 137.04)",
+          "oklch(72.14% 0.01803 137.04)",
+          "oklch(83.57% 0.01803 137.04)",
+          "oklch(95.00% 0.00601 137.04)"
+        ]
+      },
+      "icon-empty": {
+        "role": "neutral",
+        "displayName": "icon-empty",
+        "canonical": "#79916a",
+        "tonalRamp": [
+          "oklch(15.00% 0.03148 133.69)",
+          "oklch(26.43% 0.05547 133.69)",
+          "oklch(37.86% 0.06297 133.69)",
+          "oklch(49.29% 0.06297 133.69)",
+          "oklch(60.71% 0.06297 133.69)",
+          "oklch(72.14% 0.06297 133.69)",
+          "oklch(83.57% 0.06297 133.69)",
+          "oklch(95.00% 0.02099 133.69)"
+        ]
+      },
+      "icon-success": {
+        "role": "neutral",
+        "displayName": "icon-success",
+        "canonical": "#709363",
+        "tonalRamp": [
+          "oklch(15.00% 0.04002 137.44)",
+          "oklch(26.43% 0.07052 137.44)",
+          "oklch(37.86% 0.08005 137.44)",
+          "oklch(49.29% 0.08005 137.44)",
+          "oklch(60.71% 0.08005 137.44)",
+          "oklch(72.14% 0.08005 137.44)",
+          "oklch(83.57% 0.08005 137.44)",
+          "oklch(95.00% 0.02668 137.44)"
+        ]
+      },
+      "icon-working": {
+        "role": "neutral",
+        "displayName": "icon-working",
+        "canonical": "#537c5e",
+        "tonalRamp": [
+          "oklch(15.00% 0.03273 152.22)",
+          "oklch(26.43% 0.05766 152.22)",
+          "oklch(37.86% 0.06545 152.22)",
+          "oklch(49.29% 0.06545 152.22)",
+          "oklch(60.71% 0.06545 152.22)",
+          "oklch(72.14% 0.06545 152.22)",
+          "oklch(83.57% 0.06545 152.22)",
+          "oklch(95.00% 0.02182 152.22)"
+        ]
+      },
+      "status-dot": {
+        "role": "neutral",
+        "displayName": "status-dot",
+        "canonical": "#83a57a",
+        "tonalRamp": [
+          "oklch(15.00% 0.03608 139.17)",
+          "oklch(26.43% 0.06357 139.17)",
+          "oklch(37.86% 0.07216 139.17)",
+          "oklch(49.29% 0.07216 139.17)",
+          "oklch(60.71% 0.07216 139.17)",
+          "oklch(72.14% 0.07216 139.17)",
+          "oklch(83.57% 0.07216 139.17)",
+          "oklch(95.00% 0.02405 139.17)"
+        ]
+      },
+      "line-control": {
+        "role": "neutral",
+        "displayName": "line-control",
+        "canonical": "#dce4d6",
+        "tonalRamp": [
+          "oklch(15.00% 0.01031 131.46)",
+          "oklch(26.43% 0.01816 131.46)",
+          "oklch(37.86% 0.02061 131.46)",
+          "oklch(49.29% 0.02061 131.46)",
+          "oklch(60.71% 0.02061 131.46)",
+          "oklch(72.14% 0.02061 131.46)",
+          "oklch(83.57% 0.02061 131.46)",
+          "oklch(95.00% 0.00687 131.46)"
+        ]
+      },
+      "line-subtle": {
+        "role": "neutral",
+        "displayName": "line-subtle",
+        "canonical": "#edf0e8",
+        "tonalRamp": [
+          "oklch(15.00% 0.00553 123.46)",
+          "oklch(26.43% 0.00975 123.46)",
+          "oklch(37.86% 0.01107 123.46)",
+          "oklch(49.29% 0.01107 123.46)",
+          "oklch(60.71% 0.01107 123.46)",
+          "oklch(72.14% 0.01107 123.46)",
+          "oklch(83.57% 0.01107 123.46)",
+          "oklch(95.00% 0.00369 123.46)"
+        ]
+      },
+      "line-workspace": {
+        "role": "neutral",
+        "displayName": "line-workspace",
+        "canonical": "#dde3da",
+        "tonalRamp": [
+          "oklch(15.00% 0.00684 134.90)",
+          "oklch(26.43% 0.01204 134.90)",
+          "oklch(37.86% 0.01367 134.90)",
+          "oklch(49.29% 0.01367 134.90)",
+          "oklch(60.71% 0.01367 134.90)",
+          "oklch(72.14% 0.01367 134.90)",
+          "oklch(83.57% 0.01367 134.90)",
+          "oklch(95.00% 0.00456 134.90)"
+        ]
+      },
+      "line-progress": {
+        "role": "neutral",
+        "displayName": "line-progress",
+        "canonical": "#e6ecde",
+        "tonalRamp": [
+          "oklch(15.00% 0.00984 125.83)",
+          "oklch(26.43% 0.01733 125.83)",
+          "oklch(37.86% 0.01967 125.83)",
+          "oklch(49.29% 0.01967 125.83)",
+          "oklch(60.71% 0.01967 125.83)",
+          "oklch(72.14% 0.01967 125.83)",
+          "oklch(83.57% 0.01967 125.83)",
+          "oklch(95.00% 0.00656 125.83)"
+        ]
+      },
+      "line-success": {
+        "role": "neutral",
+        "displayName": "line-success",
+        "canonical": "#d6e2c7",
+        "tonalRamp": [
+          "oklch(15.00% 0.01918 126.76)",
+          "oklch(26.43% 0.03380 126.76)",
+          "oklch(37.86% 0.03836 126.76)",
+          "oklch(49.29% 0.03836 126.76)",
+          "oklch(60.71% 0.03836 126.76)",
+          "oklch(72.14% 0.03836 126.76)",
+          "oklch(83.57% 0.03836 126.76)",
+          "oklch(95.00% 0.01279 126.76)"
+        ]
+      },
+      "line-error": {
+        "role": "semantic",
+        "displayName": "line-error",
+        "canonical": "#ecd5ce",
+        "tonalRamp": [
+          "oklch(15.00% 0.01372 37.63)",
+          "oklch(26.43% 0.02418 37.63)",
+          "oklch(37.86% 0.02745 37.63)",
+          "oklch(49.29% 0.02745 37.63)",
+          "oklch(60.71% 0.02745 37.63)",
+          "oklch(72.14% 0.02745 37.63)",
+          "oklch(83.57% 0.02745 37.63)",
+          "oklch(95.00% 0.00915 37.63)"
+        ]
+      },
+      "line-preview": {
+        "role": "neutral",
+        "displayName": "line-preview",
+        "canonical": "#dfe4d8",
+        "tonalRamp": [
+          "oklch(15.00% 0.00846 125.30)",
+          "oklch(26.43% 0.01491 125.30)",
+          "oklch(37.86% 0.01693 125.30)",
+          "oklch(49.29% 0.01693 125.30)",
+          "oklch(60.71% 0.01693 125.30)",
+          "oklch(72.14% 0.01693 125.30)",
+          "oklch(83.57% 0.01693 125.30)",
+          "oklch(95.00% 0.00564 125.30)"
+        ]
+      },
+      "line-focus": {
+        "role": "neutral",
+        "displayName": "line-focus",
+        "canonical": "#8da583",
+        "tonalRamp": [
+          "oklch(15.00% 0.02775 136.53)",
+          "oklch(26.43% 0.04890 136.53)",
+          "oklch(37.86% 0.05550 136.53)",
+          "oklch(49.29% 0.05550 136.53)",
+          "oklch(60.71% 0.05550 136.53)",
+          "oklch(72.14% 0.05550 136.53)",
+          "oklch(83.57% 0.05550 136.53)",
+          "oklch(95.00% 0.01850 136.53)"
+        ]
+      },
+      "scrollbar": {
+        "role": "neutral",
+        "displayName": "scrollbar",
+        "canonical": "#dfe5db",
+        "tonalRamp": [
+          "oklch(15.00% 0.00742 132.48)",
+          "oklch(26.43% 0.01307 132.48)",
+          "oklch(37.86% 0.01484 132.48)",
+          "oklch(49.29% 0.01484 132.48)",
+          "oklch(60.71% 0.01484 132.48)",
+          "oklch(72.14% 0.01484 132.48)",
+          "oklch(83.57% 0.01484 132.48)",
+          "oklch(95.00% 0.00495 132.48)"
+        ]
+      },
+      "browser-dot-neutral": {
+        "role": "neutral",
+        "displayName": "browser-dot-neutral",
+        "canonical": "#e5e9dd",
+        "tonalRamp": [
+          "oklch(15.00% 0.00827 121.78)",
+          "oklch(26.43% 0.01457 121.78)",
+          "oklch(37.86% 0.01654 121.78)",
+          "oklch(49.29% 0.01654 121.78)",
+          "oklch(60.71% 0.01654 121.78)",
+          "oklch(72.14% 0.01654 121.78)",
+          "oklch(83.57% 0.01654 121.78)",
+          "oklch(95.00% 0.00551 121.78)"
+        ]
+      },
+      "browser-dot-close": {
+        "role": "neutral",
+        "displayName": "browser-dot-close",
+        "canonical": "#e8dbd0",
+        "tonalRamp": [
+          "oklch(15.00% 0.01033 62.84)",
+          "oklch(26.43% 0.01821 62.84)",
+          "oklch(37.86% 0.02067 62.84)",
+          "oklch(49.29% 0.02067 62.84)",
+          "oklch(60.71% 0.02067 62.84)",
+          "oklch(72.14% 0.02067 62.84)",
+          "oklch(83.57% 0.02067 62.84)",
+          "oklch(95.00% 0.00689 62.84)"
+        ]
+      },
+      "browser-dot-minimize": {
+        "role": "neutral",
+        "displayName": "browser-dot-minimize",
+        "canonical": "#e8e4cc",
+        "tonalRamp": [
+          "oklch(15.00% 0.01607 99.24)",
+          "oklch(26.43% 0.02831 99.24)",
+          "oklch(37.86% 0.03214 99.24)",
+          "oklch(49.29% 0.03214 99.24)",
+          "oklch(60.71% 0.03214 99.24)",
+          "oklch(72.14% 0.03214 99.24)",
+          "oklch(83.57% 0.03214 99.24)",
+          "oklch(95.00% 0.01071 99.24)"
+        ]
+      },
+      "browser-dot-maximize": {
+        "role": "neutral",
+        "displayName": "browser-dot-maximize",
+        "canonical": "#d8e4cb",
+        "tonalRamp": [
+          "oklch(15.00% 0.01791 128.13)",
+          "oklch(26.43% 0.03156 128.13)",
+          "oklch(37.86% 0.03582 128.13)",
+          "oklch(49.29% 0.03582 128.13)",
+          "oklch(60.71% 0.03582 128.13)",
+          "oklch(72.14% 0.03582 128.13)",
+          "oklch(83.57% 0.03582 128.13)",
+          "oklch(95.00% 0.01194 128.13)"
+        ]
+      },
+      "browser-address-ring": {
+        "role": "neutral",
+        "displayName": "browser-address-ring",
+        "canonical": "#a5b195",
+        "tonalRamp": [
+          "oklch(15.00% 0.02070 126.31)",
+          "oklch(26.43% 0.03647 126.31)",
+          "oklch(37.86% 0.04140 126.31)",
+          "oklch(49.29% 0.04140 126.31)",
+          "oklch(60.71% 0.04140 126.31)",
+          "oklch(72.14% 0.04140 126.31)",
+          "oklch(83.57% 0.04140 126.31)",
+          "oklch(95.00% 0.01380 126.31)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "brand",
+        "purpose": "页头字标。"
+      },
+      "headline": {
+        "displayName": "headline",
+        "purpose": "工作区主标题。"
+      },
+      "headline-compact": {
+        "displayName": "headline-compact",
+        "purpose": "窄屏主标题与品牌尺寸。"
+      },
+      "title": {
+        "displayName": "title",
+        "purpose": "预览空状态标题。"
+      },
+      "panel-label": {
+        "displayName": "panel-label",
+        "purpose": "聊天与预览面板标题。"
+      },
+      "body": {
+        "displayName": "body",
+        "purpose": "说明及错误正文。"
+      },
+      "conversation": {
+        "displayName": "conversation",
+        "purpose": "聊天消息正文。"
+      },
+      "input": {
+        "displayName": "input",
+        "purpose": "各设备提示输入。"
+      },
+      "control": {
+        "displayName": "control",
+        "purpose": "操作、步骤与作者标签。"
+      },
+      "metadata": {
+        "displayName": "metadata",
+        "purpose": "状态、模型、版本和辅助说明。"
+      },
+      "entry-headline": {
+        "displayName": "entry-headline",
+        "purpose": "首次创作标题；Live 已接受标题层级方案，24–32px / 700 / 1.25。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "workspace-ambient",
+        "value": "0 6px 24px #26352c04",
+        "purpose": "工作区容器的环境阴影。"
+      },
+      {
+        "name": "preview-frame",
+        "value": "0 8px 30px #39412d09, 0 2px 6px #39412d05",
+        "purpose": "预览框的双层轻阴影。"
+      },
+      {
+        "name": "composer-ambient",
+        "value": "0 2px 7px #23332903",
+        "purpose": "输入区默认阴影。"
+      },
+      {
+        "name": "composer-focus",
+        "value": "0 0 0 2px #839d7610",
+        "purpose": "输入区获得内部焦点时的光圈。"
+      },
+      {
+        "name": "device-selected",
+        "value": "0 1px 3px #38452e0b",
+        "purpose": "设备切换选中项的轻阴影。"
+      },
+      {
+        "name": "workspace-tab-selected",
+        "value": "0 1px 3px #39472b08",
+        "purpose": "移动工作区选中面板的轻阴影。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "idea-to-app-completion",
+        "value": "SVG stroke and pointer reveal 700ms cubic-bezier(0.16, 1, 0.3, 1); static under prefers-reduced-motion",
+        "purpose": "只为本次成功且实际运行的最新预览描绘完成印记，显示作品名称与版本，不提供跳转操作；刷新、历史版本、Restore 和 Reload 不重播。"
+      },
+      {
+        "name": "responsive-generation-field",
+        "value": "Worker + OffscreenCanvas; main-thread Canvas and static vector fallbacks; exponential settling at rate 10; idle rendering stops",
+        "purpose": "苔绿等高线回应输入与实际生成阶段。可见时初始化，隐藏时暂停；完成后收束。装饰层不参与交互与辅助技术阅读，也不代表预计完成百分比。"
+      },
+      {
+        "name": "generation-field-release",
+        "value": "opacity 700ms cubic-bezier(0.16, 1, 0.3, 1); transition: none under prefers-reduced-motion",
+        "purpose": "完成或失败后让出预览；减少动态效果时静态绘制并停止连续动画。"
+      },
+      {
+        "name": "button-state",
+        "value": "background 0.15s ease, color 0.15s ease, opacity 0.15s ease",
+        "purpose": "按钮背景、文字与透明度过渡。"
+      },
+      {
+        "name": "composer-border",
+        "value": "border-color 0.15s ease",
+        "purpose": "输入区焦点边线过渡。"
+      },
+      {
+        "name": "preview-width",
+        "value": "width 0.25s ease",
+        "purpose": "预览设备切换的宽度过渡。"
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation-duration: 0.01ms; transition-duration: 0.01ms; scroll-behavior: auto",
+        "purpose": "组件优先使用静态替代，工作与加载状态由文字保留；全局 0.01ms 仅兜底。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1440px",
+        "condition": "min-width"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1100px",
+        "condition": "max-width"
+      },
+      {
+        "name": "single-panel",
+        "value": "800px",
+        "condition": "max-width"
+      },
+      {
+        "name": "narrow",
+        "value": "430px",
+        "condition": "max-width"
+      },
+      {
+        "name": "compact-height",
+        "value": "700px",
+        "condition": "max-height"
+      },
+      {
+        "name": "short-height",
+        "value": "560px",
+        "condition": "max-height"
+      }
+    ],
+    "provenance": {
+      "date": "2026-10-09",
+      "sourceFiles": [
+        "src/app/globals.css",
+        "src/components/app-builder.tsx",
+        "src/app/layout.tsx"
+      ],
+      "scope": "Forge 宿主工作区",
+      "verification": "确认后的 bolder 实现：首次创作、双栏工作状态；独立本地 fixture 核对示例填入、生成、预览交互、更新失败保留与新建。桌面及窄屏一起核对，未调用真实模型。",
+      "tonalRamps": "从现有色值合成的 OKLCH 预览色阶，供面板展示，不是额外的生产设计令牌。",
+      "componentSnippets": "静态 HTML/CSS 样例；使用宿主字体变量，独立展示时允许系统回退；未附带 React 或应用交互逻辑。",
+      "fontDelivery": "项目内自托管 Public Sans 拉丁可变 WOFF2，400–700 字重、26,832 字节，Next.js 本地字体预加载与 swap，中文系统回退。"
+    },
+    "responsiveWorkspace": {
+      "projectControls": "Native details; entry expanded, work collapsed on desktop and phone. User choice persists across viewport changes.",
+      "phoneHeight": "max(36rem, 100dvh - 16rem)",
+      "shortDesktopMinHeight": "34rem",
+      "chatMinHeight": "12rem",
+      "overflow": "Page scroll preserves controls in short viewports; chat retains its own scroll.",
+      "touchTarget": "44px minimum on coarse pointers or <=800px",
+      "desktopWorkingTitle": "Accessible h1 retained; visible repeated slogan removed from desktop work view.",
+      "errorPreview": "On phone, grow the workspace with error content and retain an 18rem preview canvas."
+    },
+    "operatingCopy": {
+      "capabilities": "Create a single-page app that runs offline in your browser. Project code is saved; preview data resets on reload.",
+      "runtimeError": "Preview could not run",
+      "recovery": "Reload once. If it still fails, describe the problem in Agent Chat; when earlier versions exist, Version History offers an alternative.",
+      "technicalDetails": "Collapsed native details, keyboard accessible.",
+      "unnamedProjects": "Append creation date and time including seconds in the header, picker and deletion confirmation; preserve stored and user-defined names.",
+      "entryHeading": "Ideas become interfaces. Preserved copy; clamp(1.5rem, 3.3vw, 2rem), weight 700, line-height 1.25."
+    }
+  },
+  "components": [
+    {
+      "name": "发送按钮",
+      "kind": "button",
+      "refersTo": "button-send",
+      "description": "当前发送按钮，含默认、悬停、键盘焦点与禁用样式。",
+      "html": "<div class=\"ds-send-sample\"><button class=\"ds-send-button\" type=\"button\" aria-label=\"Send prompt\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7\"></path><path d=\"M12 19V5\"></path></svg></button></div>",
+      "css": ".ds-send-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-send-sample button, .ds-send-sample textarea{font:inherit;} .ds-send-sample button{cursor:pointer;} .ds-send-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-send-button {\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  border: 0;\n  border-radius: 7px;\n  color: var(--send-label);\n  background: var(--send);\n  flex-shrink: 0;\n}\n\n.ds-send-button:hover:enabled {\n  background: var(--send-hover);\n}\n\n.ds-send-button:disabled {\n  background: var(--disabled-surface);\n  color: var(--disabled-label);\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-send-button {\n    width: 44px;\n    height: 44px;\n  }\n}\n@media(prefers-reduced-motion:reduce){.ds-send-sample *{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "New project 次级按钮",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "页头的新建按钮；生成期间禁用并减弱。",
+      "html": "<div class=\"ds-secondary-sample\"><button class=\"ds-new-app-button\" type=\"button\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"></path><path d=\"M12 5v14\"></path></svg> New project</button></div>",
+      "css": ".ds-secondary-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-secondary-sample button, .ds-secondary-sample textarea{font:inherit;} .ds-secondary-sample button{cursor:pointer;} .ds-secondary-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n.ds-new-app-button {\n  display: flex;\n  align-items: center;\n  gap: 5px;\n  flex-shrink: 0;\n  padding: 6px 9px;\n  font-size: var(--type-control);\n  color: var(--text-secondary);\n  background: var(--surface);\n  border: 1px solid var(--line-control);\n  border-radius: 6px;\n  font-weight: 500;\n  line-height: 1.4;\n}\n.ds-new-app-button:hover {\n  background: var(--surface-success);\n}\n.ds-new-app-button:disabled {\n  opacity: 0.45;\n  cursor: wait;\n}\n@media (max-width: 430px) {\n  .ds-new-app-button {\n    padding: 5px 7px;\n    color: var(--text-secondary);\n    font-weight: 500;\n    line-height: 1.4;\n  }\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-new-app-button {\n    min-height: 44px;\n  }\n}\n@media(prefers-reduced-motion:reduce){.ds-secondary-sample *{animation:none!important;transition:none!important;}}\n@media(pointer:coarse),(max-width:800px){button,input,select,summary{min-height:44px;min-width:44px}}"
+    },
+    {
+      "name": "重载工具按钮",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "预览工具栏的透明图标按钮。",
+      "html": "<div class=\"ds-icon-sample\"><button class=\"ds-icon-button\" type=\"button\" aria-label=\"Reload preview\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"></path><path d=\"M3 3v5h5\"></path></svg></button></div>",
+      "css": ".ds-icon-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-icon-sample button, .ds-icon-sample textarea{font:inherit;} .ds-icon-sample button{cursor:pointer;} .ds-icon-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-icon-button {\n  display: grid;\n  place-items: center;\n  border: 0;\n  background: transparent;\n  color: var(--control-label);\n  padding: 4px;\n  border-radius: 4px;\n  flex-shrink: 0;\n  width: 32px;\n  height: 32px;\n}\n\n.ds-icon-button:hover {\n  background: var(--surface-hover);\n}\n.ds-icon-button:disabled {\n  opacity: 0.35;\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-icon-button {\n    width: 44px;\n    height: 44px;\n  }\n}\n@media(prefers-reduced-motion:reduce){.ds-icon-sample *{animation:none!important;transition:none!important;}}\n.ds-icon-button{color:var(--control-label)}\n@media(pointer:coarse),(max-width:800px){button,input,select,summary{min-height:44px;min-width:44px}}"
+    },
+    {
+      "name": "建议按钮",
+      "kind": "button",
+      "refersTo": "button-suggestion",
+      "description": "提示输入上方的紧凑需求建议；示例不发送生成请求。",
+      "html": "<div class=\"ds-suggestion-sample\"><div class=\"ds-prompt-suggestions\"><button type=\"button\">Todo App</button><button type=\"button\">Calculator</button></div></div>",
+      "css": ".ds-suggestion-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-suggestion-sample button, .ds-suggestion-sample textarea{font:inherit;} .ds-suggestion-sample button{cursor:pointer;} .ds-suggestion-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-prompt-suggestions {\n  display: flex;\n  align-items: center;\n  gap: var(--space-control);\n  margin-bottom: var(--space-control);\n  font-size: var(--type-metadata);\n  color: var(--text-muted);\n  flex-wrap: wrap;\n}\n\n.ds-prompt-suggestions button {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  border: 1px solid var(--line-control);\n  border-radius: 5px;\n  padding: 4px var(--space-control);\n  background: var(--surface);\n  color: var(--text-secondary);\n  font-size: var(--type-control);\n  min-height: 28px;\n  font-weight: 500;\n  line-height: 1.4;\n}\n\n.ds-prompt-suggestions button:hover {\n  background: var(--surface-hover);\n}\n\n@media (max-width: 800px) {\n\n  .ds-prompt-suggestions {\n    color: var(--text-muted);\n  }\n\n  .ds-prompt-suggestions button {\n    color: var(--text-secondary);\n    font-weight: 500;\n    line-height: 1.4;\n  }\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-prompt-suggestions button {\n    min-height: 44px;\n  }\n  .ds-prompt-suggestions > span {\n    flex-basis: 100%;\n  }\n}\n.ds-prompt-suggestions svg {\n  flex-shrink: 0;\n}\n\n.ds-prompt-suggestions {\n  display: grid;\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n}\n\n.ds-prompt-suggestions > span {\n  grid-column: 1 / -1;\n}\n\n.ds-prompt-suggestions button {\n  justify-content: center;\n  min-width: 0;\n  min-height: 32px;\n  padding-inline: 6px;\n  text-wrap: balance;\n}\n\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-prompt-suggestions button {\n    min-height: 44px;\n  }\n}\n\n@media(prefers-reduced-motion:reduce){.ds-suggestion-sample *{animation:none!important;transition:none!important;}}\n@media(pointer:coarse),(max-width:800px){button,input,select,summary{min-height:44px;min-width:44px}}"
+    },
+    {
+      "name": "多行提示输入",
+      "kind": "input",
+      "refersTo": "input-composer",
+      "description": "带模型说明、发送按钮和外层焦点反馈的输入单元。",
+      "html": "<div class=\"ds-composer-sample\"><div class=\"ds-composer\"><textarea rows=\"3\" maxlength=\"4000\" aria-label=\"Describe the app you want to create\" placeholder=\"What would you like to build?\"></textarea><div class=\"ds-composer-footer\"><button class=\"ds-send-button\" type=\"button\" aria-label=\"Send prompt\" disabled><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m5 12 7-7 7 7\"></path><path d=\"M12 19V5\"></path></svg></button></div></div></div>",
+      "css": ".ds-composer-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-composer-sample button, .ds-composer-sample textarea{font:inherit;} .ds-composer-sample button{cursor:pointer;} .ds-composer-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-status-dot {\n  display: inline-block;\n  width: 5px;\n  height: 5px;\n  border-radius: 50%;\n  background: var(--status-dot);\n  flex-shrink: 0;\n}\n\n.ds-composer {\n  position: relative;\n  border: 1px solid var(--line-control);\n  border-radius: 9px;\n  padding: var(--space-related);\n  box-shadow: 0 2px 7px #23332903;\n  transition: border-color 0.15s;\n}\n\n.ds-composer:focus-within {\n  border-color: var(--line-focus);\n}\n\n.ds-composer-busy {\n  background: var(--surface-soft);\n}\n\n.ds-composer textarea {\n  display: block;\n  resize: none;\n  width: 100%;\n  border: 0;\n  background: transparent;\n  font-size: var(--type-body);\n  line-height: 1.6;\n  color: var(--text-secondary);\n  min-height: 56px;\n}\n\n.ds-composer textarea::placeholder {\n  color: var(--text-secondary);\n}\n\n.ds-composer-footer {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  margin-top: var(--space-control);\n  gap: var(--space-related);\n}\n\n\n\n.ds-send-button {\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  border: 0;\n  border-radius: 7px;\n  color: var(--send-label);\n  background: var(--send);\n  flex-shrink: 0;\n}\n\n.ds-send-button:hover:enabled {\n  background: var(--send-hover);\n}\n\n.ds-send-button:disabled {\n  background: var(--disabled-surface);\n  color: var(--disabled-label);\n}\n\n@media (max-width: 800px) {\n\n  .ds-composer textarea {\n    color: var(--text-secondary);\n  }\n\n  \n}\n\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-send-button {\n    width: 44px;\n    height: 44px;\n  }\n}\n.ds-composer textarea {\n  caret-color: var(--accent);\n}\n\n.ds-composer:focus-within {\n  outline: 2px solid var(--accent);\n  outline-offset: 3px;\n  box-shadow: none;\n}\n\n.ds-composer textarea{padding:0;}\n\n@media(prefers-reduced-motion:reduce){.ds-composer-sample *{animation:none!important;transition:none!important;}}\n@media(pointer:coarse),(max-width:800px){button,input,select,summary{min-height:44px;min-width:44px}}"
+    },
+    {
+      "name": "设备分段切换",
+      "kind": "nav",
+      "refersTo": "nav-device",
+      "description": "Desktop / Mobile 的选中外观；静态组件示例，无应用逻辑。",
+      "html": "<div class=\"ds-device-sample\"><div class=\"ds-device-switch\" role=\"group\" aria-label=\"Preview device\"><button class=\"ds-selected\" type=\"button\" aria-pressed=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"20\" height=\"14\" x=\"2\" y=\"3\" rx=\"2\"></rect><line x1=\"8\" x2=\"16\" y1=\"21\" y2=\"21\"></line><line x1=\"12\" x2=\"12\" y1=\"17\" y2=\"21\"></line></svg><span>Desktop</span></button><button type=\"button\" aria-pressed=\"false\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect width=\"14\" height=\"20\" x=\"5\" y=\"2\" rx=\"2\" ry=\"2\"></rect><path d=\"M12 18h.01\"></path></svg><span>Mobile</span></button></div></div>",
+      "css": ".ds-device-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-device-sample button, .ds-device-sample textarea{font:inherit;} .ds-device-sample button{cursor:pointer;} .ds-device-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-device-switch {\n  display: flex;\n  background: var(--surface-device);\n  padding: 4px;\n  border-radius: 6px;\n  border: 1px solid var(--line-subtle);\n}\n\n.ds-device-switch button {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 4px var(--space-control);\n  border: 0;\n  border-radius: 4px;\n  font-size: var(--type-control);\n  background: transparent;\n  color: var(--text-secondary);\n  min-height: 32px;\n  font-weight: 500;\n  line-height: 1.4;\n}\n\n.ds-device-switch .ds-selected {\n  background: var(--surface);\n  color: var(--selected-label);\n  box-shadow: 0 1px 3px #38452e0b;\n}\n\n@media (max-width: 430px) {\n\n  .ds-device-switch button {\n    gap: 4px;\n    padding: 4px var(--space-control);\n    color: var(--text-secondary);\n    font-weight: 500;\n    line-height: 1.4;\n  }\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-device-switch button {\n    min-height: 44px;\n  }\n}\n.ds-device-switch svg {\n  flex-shrink: 0;\n}\n@media(prefers-reduced-motion:reduce){.ds-device-sample *{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "Agent 状态标签",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "Ready / Working / Restoring / Loading / Error / Preview error；以实际预览状态判断是否可运行。",
+      "html": "<div class=\"ds-status-sample\"><span class=\"ds-agent-status\">Ready</span></div>",
+      "css": ".ds-status-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-status-sample button, .ds-status-sample textarea{font:inherit;} .ds-status-sample button{cursor:pointer;} .ds-status-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-agent-status {\n  font-size: var(--type-metadata);\n  color: var(--text-muted);\n  background: var(--surface-status);\n  border-radius: 4px;\n  padding: 3px 5px;\n  margin-left: 3px;\n}\n\n.ds-agent-status[data-state=\"error\"] {\n  background: var(--surface-error);\n  color: var(--text-error);\n}\n.ds-agent-status[data-state=\"working\"] {\n  color: var(--text-working);\n  background: var(--surface-working);\n}\n@media(prefers-reduced-motion:reduce){.ds-status-sample *{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "版本历史",
+      "kind": "nav",
+      "refersTo": "version-history",
+      "description": "展开记录，预览历史代码，或将历史代码另存为新版本。",
+      "html": "<details class=\"ds-history\"><summary>Version History · v2 Latest</summary><div><button aria-pressed=\"false\">Preview v1</button><button>Restore v1</button></div></details>",
+      "css": ".ds-history{color:var(--text-secondary);background:var(--canvas);font-size:var(--type-control)}.ds-history summary,.ds-history button{min-height:44px;padding:8px;cursor:pointer}.ds-history button{background:var(--surface);color:var(--text-secondary);border:1px solid var(--line-control);border-radius:6px}.ds-history button:hover{background:var(--surface-success)}.ds-history :is(summary,button):focus-visible{outline:2px solid var(--accent);outline-offset:2px}"
+    },
+    {
+      "name": "生成步骤卡片",
+      "kind": "card",
+      "refersTo": "card-progress",
+      "description": "实际生成期间展开步骤；完成和失败后用可展开记录保留详情。",
+      "html": "<div class=\"ds-progress-sample\"><div class=\"ds-progress-card\" data-state=\"working\" aria-label=\"Agent progress\" aria-busy=\"true\"><div class=\"ds-progress-heading\"><span>Bringing your idea to life</span><span class=\"ds-progress-caption\">First generation</span></div><ol><li class=\"ds-step-done\"><span class=\"ds-step-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg></span><span>Understanding requirements</span></li><li class=\"ds-step-active\" aria-current=\"step\"><span class=\"ds-step-icon\"><span class=\"ds-spin\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 1 1-6.219-8.56\"></path></svg></span></span><span>Planning application</span><span class=\"ds-step-working\">Working</span></li><li class=\"ds-step-pending\"><span class=\"ds-step-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"7\" height=\"7\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle></svg></span><span>Generating code</span></li></ol></div></div>",
+      "css": ".ds-progress-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-progress-sample button, .ds-progress-sample textarea{font:inherit;} .ds-progress-sample button{cursor:pointer;} .ds-progress-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-progress-card {\n  position: relative;\n  background: var(--surface-soft);\n  border: 1px solid var(--line-progress);\n  border-radius: 8px;\n  padding: var(--space-section);\n  flex-shrink: 0;\n}\n\n.ds-progress-heading {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: var(--space-control);\n  margin-bottom: var(--space-related);\n  font-size: var(--type-control);\n  font-weight: 600;\n  flex-wrap: wrap;\n  line-height: 1.4;\n}\n\n.ds-progress-heading > span:first-child {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  color: var(--text-secondary);\n}\n\n.ds-progress-caption {\n  font-size: var(--type-metadata);\n  font-weight: 400;\n  color: var(--text-muted);\n}\n\n.ds-progress-card ol {\n  list-style: none;\n  padding: 0;\n  margin: 0;\n  display: flex;\n  flex-direction: column;\n  gap: var(--space-related);\n}\n\n.ds-progress-card li {\n  display: flex;\n  align-items: center;\n  gap: var(--space-control);\n  font-size: var(--type-control);\n}\n\n.ds-step-icon {\n  height: 16px;\n  width: 16px;\n  border-radius: 50%;\n  display: grid;\n  place-items: center;\n  flex-shrink: 0;\n}\n\n.ds-step-done {\n  color: var(--text-muted);\n}\n\n.ds-step-done .ds-step-icon {\n  background: var(--surface-success);\n  color: var(--icon-success);\n}\n\n.ds-step-active {\n  color: var(--text-working);\n  font-weight: 600;\n}\n\n.ds-step-active .ds-step-icon {\n  background: var(--surface-working);\n  color: var(--icon-working);\n}\n\n.ds-step-pending {\n  color: var(--text-muted);\n}\n\n.ds-step-pending .ds-step-icon {\n  background: var(--surface-status);\n}\n\n.ds-step-working {\n  margin-left: auto;\n  font-size: var(--type-metadata);\n  color: var(--text-muted);\n  font-weight: 400;\n  flex-shrink: 0;\n}\n.ds-step-failed {\n  color: var(--text-error);\n}\n.ds-step-failed .ds-step-icon {\n  background: var(--surface-error-icon);\n}\n.ds-progress-card[data-state=\"idle\"] .ds-progress-heading {\n  margin-bottom: 0;\n}\n.ds-progress-card li > span:nth-child(2) {\n  flex: 1;\n  min-width: 0;\n  overflow-wrap: anywhere;\n}\n.ds-progress-card .ds-step-icon {\n  flex-shrink: 0;\n}\n\n.ds-step-done .ds-step-icon svg {\n  animation: step-complete 180ms cubic-bezier(0.16, 1, 0.3, 1);\n}\n\n.ds-progress-card[data-state=\"working\"] {\n  border-color: var(--line-success);\n}\n\n.ds-progress-card[data-state=\"complete\"] .ds-progress-heading > span:first-child {\n  color: var(--ink);\n}\n\n@media (prefers-reduced-motion: reduce) {\n  .ds-step-done .ds-step-icon svg {\n    animation: none;\n  }\n}\n.ds-progress-details {\n  font-size: var(--type-metadata);\n  color: var(--text-muted);\n}\n.ds-progress-details summary {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: var(--space-control);\n  padding-block: var(--space-control);\n  cursor: pointer;\n  list-style: none;\n}\n.ds-progress-details summary::-webkit-details-marker {\n  display: none;\n}\n.ds-progress-details summary:focus-visible {\n  outline: 2px solid var(--accent);\n  outline-offset: 4px;\n  border-radius: 4px;\n}\n.ds-progress-details[open] summary svg {\n  transform: rotate(180deg);\n}\n.ds-progress-details ol {\n  margin-top: var(--space-control);\n}\n@media(prefers-reduced-motion:reduce){.ds-progress-sample *{animation:none!important;transition:none!important;}}\n.ds-spin{animation:ds-spin 1s linear infinite;}\n@keyframes ds-spin{to{transform:rotate(360deg)}}\n.ds-step-done .ds-step-icon svg{animation:ds-step-complete 180ms cubic-bezier(.16,1,.3,1);}\n@keyframes ds-step-complete{from{transform:scale(.75)}to{transform:scale(1)}}"
+    },
+    {
+      "name": "预览承托框",
+      "kind": "custom",
+      "refersTo": "frame-preview",
+      "description": "现有预览框、浏览器栏及层次；iframe 使用静态占位文档演示结构。",
+      "html": "<div class=\"ds-preview-sample\"><div class=\"ds-preview-frame ds-preview-desktop\"><div class=\"ds-browser-bar\"><span class=\"ds-browser-dots\"><i></i><i></i><i></i></span><span class=\"ds-browser-address\"><span class=\"ds-address-dot\"></span>Field Review Counter</span></div><iframe title=\"Preview component example\" sandbox=\"allow-scripts\" referrerpolicy=\"no-referrer\" srcdoc=\"&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;/body&gt;&lt;/html&gt;\"></iframe></div></div>",
+      "css": ".ds-preview-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-preview-sample button, .ds-preview-sample textarea{font:inherit;} .ds-preview-sample button{cursor:pointer;} .ds-preview-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-preview-frame {\n  display: flex;\n  flex-direction: column;\n  border: 1px solid var(--line-preview);\n  border-radius: 10px;\n  overflow: hidden;\n  background: var(--surface);\n  box-shadow:\n    0 8px 30px #39412d09,\n    0 2px 6px #39412d05;\n  max-width: 100%;\n  min-height: 320px;\n  transition: width 0.25s;\n  flex-shrink: 0;\n}\n\n.ds-preview-desktop {\n  width: 100%;\n  max-width: 1120px;\n  flex: 1 0 240px;\n  min-height: 240px;\n}\n\n.ds-preview-mobile {\n  width: 375px;\n  height: 667px;\n  flex: 0 0 667px;\n}\n\n.ds-browser-bar {\n  height: 34px;\n  flex-shrink: 0;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 0 12px;\n  background: var(--surface);\n  border-bottom: 1px solid var(--surface-device);\n  color: var(--icon-muted);\n}\n\n.ds-browser-dots {\n  display: flex;\n  gap: 4px;\n}\n\n.ds-browser-dots i {\n  height: 6px;\n  width: 6px;\n  border-radius: 50%;\n  background: var(--browser-dot-neutral);\n}\n\n.ds-browser-dots i:first-child {\n  background: var(--browser-dot-close);\n}\n\n.ds-browser-dots i:nth-child(2) {\n  background: var(--browser-dot-minimize);\n}\n\n.ds-browser-dots i:nth-child(3) {\n  background: var(--browser-dot-maximize);\n}\n\n.ds-browser-address {\n  font-size: var(--type-metadata);\n  color: var(--text-muted);\n  display: flex;\n  align-items: center;\n  gap: 5px;\n  letter-spacing: 0.2px;\n}\n\n.ds-address-dot {\n  height: 4px;\n  width: 4px;\n  border: 1px solid var(--browser-address-ring);\n  border-radius: 50%;\n}\n\n.ds-preview-frame iframe {\n  width: 100%;\n  flex: 1;\n  min-height: 0;\n  border: 0;\n  background: var(--surface-soft);\n}\n.ds-browser-address {\n  font-variant-numeric: tabular-nums;\n}\n@media(prefers-reduced-motion:reduce){.ds-preview-sample *{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "开始创作按钮",
+      "kind": "button",
+      "refersTo": "button-start",
+      "description": "首次创作的明确主操作，沿用发送按钮状态配色。",
+      "html": "<div class=\"ds-start-sample\"><div class=\"ds-workspace-start\"><button class=\"ds-send-button\" type=\"button\">Start building <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M5 12h14m-6-6 6 6-6 6\"/></svg></button></div></div>",
+      "css": ".ds-start-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-start-sample button, .ds-start-sample textarea{font:inherit;} .ds-start-sample button{cursor:pointer;} .ds-start-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-send-button {\n  display: grid;\n  place-items: center;\n  width: 32px;\n  height: 32px;\n  border: 0;\n  border-radius: 7px;\n  color: var(--send-label);\n  background: var(--send);\n  flex-shrink: 0;\n}\n\n.ds-send-button:hover:enabled {\n  background: var(--send-hover);\n}\n\n.ds-send-button:disabled {\n  background: var(--disabled-surface);\n  color: var(--disabled-label);\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-send-button {\n    width: 44px;\n    height: 44px;\n  }\n}\n.ds-workspace-start {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: var(--space-region) 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  scrollbar-color: var(--scrollbar) transparent;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n}\n\n.ds-workspace-start .ds-send-button {\n  display: flex;\n  gap: var(--space-control);\n  width: auto;\n  height: 44px;\n  padding-inline: var(--space-section);\n  font-size: var(--type-control);\n  font-weight: 500;\n  line-height: 1.4;\n}\n\n@media (max-width: 800px) {\n  .ds-workspace-start {\n    padding-block: var(--space-panel);\n  }\n}\n\n@media (max-width: 430px) {\n\n  .ds-workspace-start .ds-send-button {\n    margin-left: auto;\n  }\n}\n\n@media(prefers-reduced-motion:reduce){.ds-start-sample *{animation:none!important;transition:none!important;}}"
+    },
+    {
+      "name": "具象示例入口",
+      "kind": "button",
+      "refersTo": "button-example",
+      "description": "表示现有示例类别的小图；点击行为是填入提示词，静态样例不执行生成。",
+      "html": "<div class=\"ds-example-sample\"><div class=\"ds-workspace-start\"><div class=\"ds-prompt-suggestions\"><button type=\"button\"><svg class=\"ds-example-artwork\" viewBox=\"0 0 72 72\" aria-hidden=\"true\"><rect x=\"12\" y=\"10\" width=\"48\" height=\"52\" rx=\"4\"/><rect x=\"20\" y=\"20\" width=\"8\" height=\"8\" rx=\"2\"/><path d=\"m21 24 2 2 4-4M34 24h18M34 36h12M34 48h18\"/><rect x=\"20\" y=\"32\" width=\"8\" height=\"8\" rx=\"2\"/><rect x=\"20\" y=\"44\" width=\"8\" height=\"8\" rx=\"2\"/></svg><span class=\"ds-example-copy\"><strong>Todo App</strong><span>Use idea</span></span></button></div></div></div>",
+      "css": ".ds-example-sample{font-family:var(--font-public-sans,Public Sans,\"Segoe UI\",\"PingFang SC\",\"Hiragino Sans GB\",\"Microsoft YaHei\",sans-serif);font-size:1rem;line-height:1.6;color:var(--ink);} .ds-example-sample button, .ds-example-sample textarea{font:inherit;} .ds-example-sample button{cursor:pointer;} .ds-example-sample button:focus-visible{outline:2px solid var(--accent);outline-offset:4px;}\n\n.ds-prompt-suggestions {\n  display: flex;\n  align-items: center;\n  gap: var(--space-control);\n  margin-bottom: var(--space-control);\n  font-size: var(--type-metadata);\n  color: var(--text-muted);\n  flex-wrap: wrap;\n}\n\n.ds-prompt-suggestions button {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  border: 1px solid var(--line-control);\n  border-radius: 5px;\n  padding: 4px var(--space-control);\n  background: var(--surface);\n  color: var(--text-secondary);\n  font-size: var(--type-control);\n  min-height: 28px;\n  font-weight: 500;\n  line-height: 1.4;\n}\n\n.ds-prompt-suggestions button:hover {\n  background: var(--surface-hover);\n}\n\n@media (max-width: 800px) {\n\n  .ds-prompt-suggestions {\n    color: var(--text-muted);\n  }\n\n  .ds-prompt-suggestions button {\n    color: var(--text-secondary);\n    font-weight: 500;\n    line-height: 1.4;\n  }\n}\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-prompt-suggestions button {\n    min-height: 44px;\n  }\n  .ds-prompt-suggestions > span {\n    flex-basis: 100%;\n  }\n}\n.ds-prompt-suggestions svg {\n  flex-shrink: 0;\n}\n\n.ds-prompt-suggestions {\n  display: grid;\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n}\n\n.ds-prompt-suggestions > span {\n  grid-column: 1 / -1;\n}\n\n.ds-prompt-suggestions button {\n  justify-content: center;\n  min-width: 0;\n  min-height: 32px;\n  padding-inline: 6px;\n  text-wrap: balance;\n}\n\n@media (pointer: coarse), (max-width: 800px) {\n  .ds-prompt-suggestions button {\n    min-height: 44px;\n  }\n}\n.ds-workspace-start {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: var(--space-region) 0;\n  overflow: auto;\n  overscroll-behavior: contain;\n  scrollbar-color: var(--scrollbar) transparent;\n  border: 0;\n  border-radius: 0;\n  background: transparent;\n  box-shadow: none;\n}\n\n.ds-workspace-start .ds-prompt-suggestions {\n  order: 2;\n  align-items: stretch;\n  gap: var(--space-related);\n  margin: var(--space-panel) 0 0;\n}\n\n.ds-workspace-start .ds-prompt-suggestions button {\n  justify-content: flex-start;\n  text-align: left;\n  gap: var(--space-related);\n  min-height: 104px;\n  padding: var(--space-related);\n  border: 1px solid var(--line);\n  border-radius: 8px;\n}\n\n.ds-workspace-start .ds-prompt-suggestions button:hover {\n  border-color: var(--line-control);\n  background: var(--surface-hover);\n}\n\n.ds-example-artwork {\n  width: 64px;\n  height: 64px;\n  flex-shrink: 0;\n  fill: none;\n  stroke: var(--text-secondary);\n  stroke-width: 1.5;\n  stroke-linecap: round;\n  stroke-linejoin: round;\n}\n\n.ds-example-cell-filled {\n  fill: var(--text-secondary);\n}\n\n.ds-example-copy {\n  display: flex;\n  flex-direction: column;\n  gap: var(--space-control);\n  min-width: 0;\n}\n\n.ds-example-copy strong {\n  color: var(--ink);\n  font-weight: 600;\n}\n\n.ds-example-copy > span {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  color: var(--text-muted);\n  font-size: var(--type-metadata);\n}\n\n@media (max-width: 800px) {\n  .ds-workspace-start {\n    padding-block: var(--space-panel);\n  }\n\n  .ds-workspace-start .ds-prompt-suggestions {\n    grid-template-columns: minmax(0, 1fr);\n    gap: var(--space-control);\n  }\n\n  .ds-workspace-start .ds-prompt-suggestions button {\n    min-height: 80px;\n  }\n\n  .ds-example-artwork {\n    width: 48px;\n    height: 48px;\n  }\n}\n\n@media(prefers-reduced-motion:reduce){.ds-example-sample *{animation:none!important;transition:none!important;}}\n.ds-example-sample .ds-prompt-suggestions{grid-template-columns:minmax(0,1fr)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "绿意实验室",
+    "overview": "Forge 的现有界面是一间专业、精确的数字实验室：首次进入时，用户通过居中宽输入框与具象示例开始创作；提交后进入聊天与预览并列的工作台，再通过下一轮输入推进应用。安静的底色承托鲜明的输入入口，生成结果与实际状态成为工作阶段的视觉重心。\n\n苔绿标记动作、焦点与工作状态，深绿墨承载主要文字，雾白和纯白区分环境与操作面。层次主要由底色和细边框建立；预览框、输入区与选中控件保留轻阴影，输入焦点使用清楚的苔绿轮廓。组件的共同特征是克制、精确、状态清晰。\n\n",
+    "keyCharacteristics": [
+      "绿灰色环境、白色操作面与低强度绿色强调。",
+      "首次创作聚焦输入；提交后聊天与预览并列，窄屏按面板切换。",
+      "紧凑的无衬线排版和细线图标。",
+      "以边框和色阶建立结构，以轻阴影补充层次。",
+      "明确区分等待、进行中、完成、禁用与错误。"
+    ],
+    "rules": [
+      {
+        "name": "The State Pairing Rule",
+        "body": "状态由文字、图标、底色和可用性共同表达；保留实际状态配对，不把颜色作为唯一提示。",
+        "section": "colors"
+      },
+      {
+        "name": "The Role Continuity Rule",
+        "body": "用固定角色、真实字重与留白区分层级；正文和操作在不同设备上保持相同语义尺度，辅助信息也必须可读。",
+        "section": "typography"
+      },
+      {
+        "name": "The Shared Workspace Rule",
+        "body": "保留聊天、输入和预览的明确分工；窄屏通过面板切换维持任务连续性。",
+        "section": "layout"
+      },
+      {
+        "name": "The Tonal Structure Rule",
+        "body": "先延续底色和细边框，再使用现有轻阴影表达承托或选中状态。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "延续苔绿、深绿墨与雾白的角色关系，按组件采用当前状态配对。",
+      "使用统一字体栈与语义字号：正文 16px、操作 14px、辅助信息 12px。",
+      "以背景、细边框和轻阴影组织工作区层次。",
+      "保留按钮焦点、可访问名称、选中状态和减少动态效果的行为。",
+      "在生成或修改失败时保留上一份可用预览及明确的恢复操作。"
+    ],
+    "donts": [
+      "不把宿主工作区的颜色、字体或组件样式注入生成应用。",
+      "不把历史预览当作代码恢复；Restore 必须另存为新版本并保留已有记录。",
+      "不把局部辅助色、圆角和内边距强行归并为源码中不存在的统一尺度。",
+      "不把颜色用作唯一的生成状态或错误提示。",
+      "不添加未实现的产品能力、虚假生成进度或成功声明。"
+    ]
+  }
+}

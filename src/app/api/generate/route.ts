@@ -1,10 +1,14 @@
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { createAppGeneratorProvider } from "@/lib/ai/provider";
 import {
   GenerationError,
   publicGenerationError,
 } from "@/lib/generation/errors";
+import { generationDeadline } from "@/lib/generation/deadline";
 import {
   generateRequestSchema,
+  pendingGenerationSchema,
   type GenerateRequest,
   type GenerationEvent,
 } from "@/lib/generation/schema";
@@ -16,6 +20,7 @@ import {
   toAppVersion,
   versionSchema,
 } from "@/lib/projects/schema";
+import { requireSession } from "@/lib/projects/session";
 import {
   assertSameOrigin,
   databaseError,
@@ -25,32 +30,42 @@ import {
 
 export const runtime = "nodejs";
 export const maxDuration = 150;
+const claimedSchema = z.object({
+  state: z.literal("claimed"),
+  project: projectSchema,
+  currentVersion: versionSchema.nullable(),
+  userMessage: messageSchema,
+  message: messageSchema,
+});
 
 export async function POST(request: Request) {
-  let input: GenerateRequest;
-  let db: ReturnType<typeof getSupabase>;
-  let userMessage: ReturnType<typeof messageSchema.parse>;
-  let generationRequest: GenerateRequest;
-  let existing: ReturnType<typeof savedGenerationSchema.parse> | null = null;
-  let timeoutMs: number;
+  const startedAt = Date.now();
+  let deadline: ReturnType<typeof generationDeadline> | undefined;
+  let ownerId = "";
+  let input: GenerateRequest | undefined;
+  const runToken = randomUUID();
+  let claimed = false;
   try {
+    deadline = generationDeadline(request, startedAt);
     assertSameOrigin(request);
+    ownerId = requireSession(request);
     if (!request.headers.get("content-type")?.includes("application/json"))
       throw new GenerationError(
         "INVALID_REQUEST",
         "Send the prompt as application/json.",
         415,
       );
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 1024 * 1024)
+    const raw = await deadline.waitFor(request.text());
+    deadline.check();
+    if (Buffer.byteLength(raw) > 1024 * 1024)
       throw new GenerationError(
         "INVALID_REQUEST",
         "The generation request is too large.",
         413,
       );
-    let data;
+    let body;
     try {
-      data = JSON.parse(raw);
+      body = JSON.parse(raw);
     } catch {
       throw new GenerationError(
         "INVALID_REQUEST",
@@ -58,21 +73,21 @@ export async function POST(request: Request) {
         400,
       );
     }
-    const result = generateRequestSchema.safeParse(data);
-    if (!result.success)
+    const parsed = generateRequestSchema.safeParse(body);
+    if (!parsed.success)
       throw new GenerationError(
         "INVALID_REQUEST",
-        "Provide a prompt containing 1–4000 characters and valid project, request and base-version IDs.",
+        "Provide a 1–4000 character prompt, projectId, requestId and baseVersionId.",
         400,
       );
-    input = result.data;
+    input = parsed.data;
     if (input.currentApp) {
       try {
         validateGeneratedApp(JSON.stringify(input.currentApp));
       } catch {
         throw new GenerationError(
           "INVALID_CURRENT_APP",
-          "The existing application is invalid or exceeds the supported code limits.",
+          "The existing app is invalid or exceeds supported code limits.",
           400,
         );
       }
@@ -84,206 +99,225 @@ export async function POST(request: Request) {
     )
       throw new GenerationError(
         "INVALID_REQUEST",
-        "Create or open a project before generating. Include projectId, requestId and baseVersionId.",
+        "Create or open a project and include projectId, requestId and baseVersionId.",
         400,
       );
-    timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS || 120000);
-    if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000)
-      throw new GenerationError(
-        "CONFIGURATION_ERROR",
-        "GENERATION_TIMEOUT_MS must be between 1000 and 120000.",
-        503,
-      );
-    db = getSupabase();
-    const projectResult = await db
-      .from("projects")
-      .select("*")
-      .eq("id", input.projectId)
-      .maybeSingle();
-    if (projectResult.error) throw databaseError(projectResult.error);
-    if (!projectResult.data)
-      throw new GenerationError(
-        "PROJECT_NOT_FOUND",
-        "This project no longer exists. Create a new project.",
-        404,
-      );
-    const project = projectSchema.parse(projectResult.data);
-    const previousUser = await db
-      .from("messages")
-      .select("*")
-      .eq("project_id", input.projectId)
-      .eq("request_id", input.requestId)
-      .eq("role", "user")
-      .maybeSingle();
-    if (previousUser.error) throw databaseError(previousUser.error);
-    if (previousUser.data && previousUser.data.content !== input.prompt)
-      throw new GenerationError(
-        "INVALID_REQUEST",
-        "A generation request ID cannot be reused for a different prompt.",
-        409,
-      );
-    const savedResult = await db
-      .from("versions")
-      .select("*")
-      .eq("id", input.requestId)
-      .eq("project_id", input.projectId)
-      .maybeSingle();
-    if (savedResult.error) throw databaseError(savedResult.error);
-    if (savedResult.data) {
-      const reply = await db
-        .from("messages")
-        .select("*")
-        .eq("project_id", input.projectId)
-        .eq("request_id", input.requestId)
-        .eq("role", "assistant")
-        .single();
-      if (reply.error) throw databaseError(reply.error);
-      existing = savedGenerationSchema.parse({
-        project,
-        version: savedResult.data,
-        message: reply.data,
+    const db = getSupabase(deadline.signal);
+    const begun = await deadline.waitFor(
+      db.rpc("forge_begin_generation", {
+        p_owner_id: ownerId,
+        p_project_id: input.projectId,
+        p_request_id: input.requestId,
+        p_prompt: input.prompt,
+        p_base_version_id: input.baseVersionId,
+        p_run_token: runToken,
+        p_deadline_at: deadline.deadlineAt,
+      }),
+    );
+    if (begun.error) throw databaseError(begun.error);
+    const state = begun.data?.state;
+    if (state === "processing") {
+      deadline.close();
+      return Response.json(pendingGenerationSchema.parse(begun.data), {
+        status: 202,
+        headers: { "Cache-Control": "private, no-store" },
       });
-      validateGeneratedApp(JSON.stringify(toAppVersion(existing.version).app));
-      userMessage = messageSchema.parse(previousUser.data);
-      generationRequest = { prompt: input.prompt };
-    } else {
-      const latestResult = await db
-        .from("versions")
-        .select("*")
-        .eq("project_id", input.projectId)
-        .order("version_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latestResult.error) throw databaseError(latestResult.error);
-      const latest = latestResult.data
-        ? versionSchema.parse(latestResult.data)
-        : null;
-      if ((latest?.id ?? null) !== input.baseVersionId)
-        throw new GenerationError(
-          "PROJECT_CHANGED",
-          "This project has a newer version. Reload the project before making another change.",
-          409,
-        );
-      generationRequest = { prompt: input.prompt };
-      if (latest)
-        generationRequest.currentApp = validateGeneratedApp(
-          JSON.stringify(toAppVersion(latest).app),
-        );
-      if (previousUser.data)
-        userMessage = messageSchema.parse(previousUser.data);
-      else {
-        const inserted = await db
-          .from("messages")
-          .insert({
-            id: input.requestId,
-            project_id: input.projectId,
-            request_id: input.requestId,
-            role: "user",
-            content: input.prompt,
-          })
-          .select("*")
-          .single();
-        if (inserted.error) throw databaseError(inserted.error);
-        userMessage = messageSchema.parse(inserted.data);
-      }
     }
-  } catch (error) {
-    return projectErrorResponse(error);
-  }
-
-  const abortController = new AbortController();
-  const signal = AbortSignal.any([abortController.signal, request.signal]);
-  const encoder = new TextEncoder();
-  let streamClosed = false;
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    abortController.abort();
-  }, timeoutMs);
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = (event: GenerationEvent) => {
-        if (!streamClosed)
-          controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
-      };
-      try {
-        send({ type: "message", message: userMessage });
-        if (existing) {
-          send({ type: "complete", saved: existing });
-          return;
+    if (state === "completed") {
+      const saved = savedGenerationSchema.parse(begun.data.saved);
+      const user = messageSchema.parse(begun.data.userMessage);
+      deadline.close();
+      return new Response(
+        [
+          { type: "message", message: user },
+          { type: "complete", saved },
+        ]
+          .map((event) => JSON.stringify(event))
+          .join("\n") + "\n",
+        {
+          headers: {
+            "Content-Type": "application/x-ndjson",
+            "Cache-Control": "private, no-store",
+          },
+        },
+      );
+    }
+    claimed = true;
+    const begin = claimedSchema.parse(begun.data);
+    const context: GenerateRequest = { prompt: input.prompt };
+    if (begin.currentVersion)
+      context.currentApp = validateGeneratedApp(
+        JSON.stringify(toAppVersion(begin.currentVersion).app),
+      );
+    deadline.check();
+    const activeDeadline = deadline;
+    const activeInput = input;
+    const encoder = new TextEncoder();
+    let closed = false;
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (event: GenerationEvent) => {
+          if (!closed)
+            controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        };
+        async function advance(step: number, content: string, plan?: string[]) {
+          activeDeadline.check();
+          const result = await activeDeadline.waitFor(
+            db.rpc("forge_advance_generation", {
+              p_owner_id: ownerId,
+              p_project_id: activeInput.projectId,
+              p_request_id: activeInput.requestId,
+              p_run_token: runToken,
+              p_phase: step,
+              p_content: content,
+              ...(plan ? { p_plan: plan } : {}),
+            }),
+          );
+          if (result.error) throw databaseError(result.error);
+          activeDeadline.check();
+          send({ type: "message", message: messageSchema.parse(result.data) });
+          send({ type: "status", step });
         }
-        const provider = createAppGeneratorProvider();
-        send({ type: "status", step: 0 });
-        send({ type: "status", step: 1 });
-        send({ type: "status", step: 2 });
-        const raw = await provider.generate(generationRequest, signal);
-        if (signal.aborted) throw new Error("Aborted");
-        send({ type: "status", step: 3 });
-        const app = validateGeneratedApp(raw);
-        if (signal.aborted) throw new Error("Aborted");
-        send({ type: "status", step: 4 });
-        const saved = await db.rpc("forge_save_generation", {
-          p_project_id: input.projectId,
-          p_request_id: input.requestId,
-          p_prompt: input.prompt,
-          p_base_version_id: input.baseVersionId,
-          p_app: app,
-          p_model: provider.model,
-        });
-        if (saved.error) throw databaseError(saved.error);
-        send({
-          type: "complete",
-          saved: savedGenerationSchema.parse(saved.data),
-        });
-      } catch (error) {
-        let failure = timedOut
-          ? new GenerationError(
-              "GENERATION_TIMEOUT",
-              "Generation timed out. Retry this request or describe a simpler application.",
-              504,
+        try {
+          send({ type: "message", message: begin.userMessage });
+          send({ type: "message", message: begin.message });
+          send({ type: "status", step: 0 });
+          const provider = createAppGeneratorProvider();
+          await advance(1, "Planning application");
+          const plan = await activeDeadline.waitFor(
+            provider.plan(context, activeDeadline.signal),
+          );
+          activeDeadline.check();
+          await advance(2, "Generating application code", plan.steps);
+          send({ type: "plan", plan });
+          const raw = await activeDeadline.waitFor(
+            provider.generate(context, activeDeadline.signal, undefined, plan),
+          );
+          activeDeadline.check();
+          await advance(3, "Validating application");
+          let app;
+          try {
+            app = validateGeneratedApp(raw);
+          } catch (error) {
+            if (
+              !(error instanceof GenerationError) ||
+              error.code !== "INVALID_GENERATED_APP"
             )
-          : signal.aborted
+              throw error;
+            activeDeadline.check();
+            await advance(3, "Correcting invalid generated output");
+            app = validateGeneratedApp(
+              await activeDeadline.waitFor(
+                provider.generate(
+                  context,
+                  activeDeadline.signal,
+                  error.message,
+                  plan,
+                ),
+              ),
+            );
+          }
+          activeDeadline.check();
+          await advance(4, "Saving version");
+          const saved = await activeDeadline.waitFor(
+            db.rpc("forge_finish_generation", {
+              p_owner_id: ownerId,
+              p_project_id: activeInput.projectId,
+              p_request_id: activeInput.requestId,
+              p_run_token: runToken,
+              p_app: app,
+              p_model: provider.model,
+            }),
+          );
+          if (saved.error) throw databaseError(saved.error);
+          activeDeadline.check();
+          send({
+            type: "complete",
+            saved: savedGenerationSchema.parse(saved.data),
+          });
+        } catch (error) {
+          // A separate bounded reconciliation may read an already committed success.
+          // Its database fence prevents late failures from altering any successful result.
+          const failure = activeDeadline.signal.aborted
             ? new GenerationError(
-                "GENERATION_CANCELLED",
-                "Generation was interrupted. Retry the request to recover any saved result.",
+                "GENERATION_TIMEOUT",
+                "The request timed out or was interrupted. Reload to check the saved result, then retry if needed.",
+                504,
               )
             : publicGenerationError(error);
-        const reply = await db
-          .from("messages")
-          .upsert(
+          const settled = await getSupabase(AbortSignal.timeout(5000)).rpc(
+            "forge_fail_generation",
             {
-              project_id: input.projectId,
-              request_id: input.requestId,
-              role: "assistant",
-              content: failure.message,
+              p_owner_id: ownerId,
+              p_project_id: activeInput.projectId,
+              p_request_id: activeInput.requestId,
+              p_run_token: runToken,
+              p_code: failure.code,
+              p_message: failure.message,
             },
-            { onConflict: "project_id,request_id,role" },
-          )
-          .select("*")
-          .single();
-        if (reply.error) failure = databaseError(reply.error);
-        else
-          send({ type: "message", message: messageSchema.parse(reply.data) });
-        send({ type: "error", code: failure.code, message: failure.message });
-      } finally {
-        clearTimeout(timer);
-        if (!streamClosed) {
-          streamClosed = true;
-          controller.close();
+          );
+          if (!settled.error && settled.data?.state === "completed")
+            send({
+              type: "complete",
+              saved: savedGenerationSchema.parse(settled.data.saved),
+            });
+          else {
+            if (!settled.error && settled.data?.message)
+              send({
+                type: "message",
+                message: messageSchema.parse(settled.data.message),
+              });
+            const visible = settled.error
+              ? databaseError(settled.error)
+              : failure;
+            send({
+              type: "error",
+              code: visible.code,
+              message: visible.message,
+            });
+          }
+        } finally {
+          activeDeadline.close();
+          if (!closed) {
+            closed = true;
+            controller.close();
+          }
         }
-      }
-    },
-    cancel() {
-      streamClosed = true;
-      clearTimeout(timer);
-      abortController.abort();
-    },
-  });
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-store, no-transform",
-      "X-Accel-Buffering": "no",
-    },
-  });
+      },
+      cancel() {
+        closed = true;
+        activeDeadline.abort();
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "private, no-store, no-transform",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  } catch (error) {
+    if (deadline?.signal.aborted)
+      error = new GenerationError(
+        "GENERATION_TIMEOUT",
+        "The request timed out or was interrupted. Reload to check its saved result, then retry.",
+        504,
+      );
+    if (claimed && input) {
+      const failure = publicGenerationError(error);
+      await getSupabase(AbortSignal.timeout(5000)).rpc(
+        "forge_fail_generation",
+        {
+          p_owner_id: ownerId,
+          p_project_id: input.projectId,
+          p_request_id: input.requestId,
+          p_run_token: runToken,
+          p_code: failure.code,
+          p_message: failure.message,
+        },
+      );
+    }
+    deadline?.close();
+    return projectErrorResponse(error);
+  }
 }

@@ -1,7 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { GenerationError } from "@/lib/generation/errors";
+import {
+  GenerationError,
+  publicGenerationError,
+} from "@/lib/generation/errors";
+import { generationDeadline } from "@/lib/generation/deadline";
 import { validateGeneratedApp } from "@/lib/generation/validate";
-import type { GeneratedApp } from "@/lib/generation/schema";
+import { pendingGenerationSchema } from "@/lib/generation/schema";
 import {
   messageSchema,
   restoreRequestSchema,
@@ -9,6 +14,7 @@ import {
   toAppVersion,
   versionSchema,
 } from "@/lib/projects/schema";
+import { requireSession } from "@/lib/projects/session";
 import {
   assertSameOrigin,
   databaseError,
@@ -17,14 +23,23 @@ import {
 } from "@/lib/projects/server";
 
 export const runtime = "nodejs";
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> },
 ) {
+  const startedAt = Date.now();
+  let deadline: ReturnType<typeof generationDeadline> | undefined;
+  let ownerId = "",
+    projectId = "",
+    requestId = "";
+  const runToken = randomUUID();
+  let claimed = false;
+  let userMessage: z.infer<typeof messageSchema> | undefined;
   try {
+    deadline = generationDeadline(request, startedAt);
     assertSameOrigin(request);
-    const { projectId } = await params;
+    ownerId = requireSession(request);
+    projectId = (await params).projectId;
     if (!z.uuid().safeParse(projectId).success)
       throw new GenerationError(
         "INVALID_REQUEST",
@@ -37,8 +52,9 @@ export async function POST(
         "Send the restore request as application/json.",
         415,
       );
-    const raw = await request.text();
-    if (new TextEncoder().encode(raw).byteLength > 4096)
+    const raw = await deadline.waitFor(request.text());
+    deadline.check();
+    if (Buffer.byteLength(raw) > 4096)
       throw new GenerationError(
         "INVALID_REQUEST",
         "The restore request is too large.",
@@ -62,112 +78,117 @@ export async function POST(
         400,
       );
     const input = parsed.data;
-    const db = getSupabase();
-    const sourceResult = await db
-      .from("versions")
-      .select("*")
-      .eq("project_id", projectId)
-      .eq("id", input.versionId)
-      .maybeSingle();
+    requestId = input.requestId;
+    const db = getSupabase(deadline.signal);
+    // Check ownership before reading any source code with the privileged client.
+    const project = await deadline.waitFor(
+      db
+        .from("projects")
+        .select("id")
+        .eq("id", projectId)
+        .eq("owner_id", ownerId)
+        .maybeSingle(),
+    );
+    if (project.error) throw databaseError(project.error);
+    if (!project.data) throw databaseError({ code: "P0002" });
+    const sourceResult = await deadline.waitFor(
+      db
+        .from("versions")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("id", input.versionId)
+        .maybeSingle(),
+    );
     if (sourceResult.error) throw databaseError(sourceResult.error);
     if (!sourceResult.data)
       throw new GenerationError(
         "VERSION_NOT_FOUND",
-        "This version does not exist in the selected project. Reload the project and try again.",
+        "This version does not exist in your project.",
         404,
       );
     const source = versionSchema.parse(sourceResult.data);
-    let app: GeneratedApp;
+    let app;
     try {
       app = validateGeneratedApp(JSON.stringify(toAppVersion(source).app));
     } catch {
       throw new GenerationError(
         "INVALID_STORED_VERSION",
-        "This stored version does not pass application validation and cannot be restored. Choose another version.",
+        "This stored version does not pass validation. Choose another version.",
         422,
       );
     }
-    const prompt = `Restore v${source.version_number}`;
-    const previousUser = await db
-      .from("messages")
-      .select("*")
-      .eq("project_id", projectId)
-      .eq("request_id", input.requestId)
-      .eq("role", "user")
-      .maybeSingle();
-    if (previousUser.error) throw databaseError(previousUser.error);
-    const existingResult = await db
-      .from("versions")
-      .select("*")
-      .eq("id", input.requestId)
-      .maybeSingle();
-    if (existingResult.error) throw databaseError(existingResult.error);
-    if (
-      (previousUser.data && previousUser.data.content !== prompt) ||
-      (existingResult.data &&
-        (existingResult.data.project_id !== projectId ||
-          existingResult.data.prompt !== prompt ||
-          ["title", "html", "css", "javascript"].some(
-            (field) =>
-              existingResult.data[field] !== app[field as keyof typeof app],
-          )))
-    )
-      throw new GenerationError(
-        "INVALID_REQUEST",
-        "A restore request ID cannot be reused for another operation.",
-        409,
+    deadline.check();
+    const begin = await deadline.waitFor(
+      db.rpc("forge_begin_generation", {
+        p_owner_id: ownerId,
+        p_project_id: projectId,
+        p_request_id: input.requestId,
+        p_prompt: `Restore v${source.version_number}`,
+        p_base_version_id: input.baseVersionId,
+        p_run_token: runToken,
+        p_deadline_at: deadline.deadlineAt,
+        p_operation: "restore",
+        p_source_version_id: source.id,
+      }),
+    );
+    if (begin.error) throw databaseError(begin.error);
+    if (begin.data.state === "processing")
+      return Response.json(pendingGenerationSchema.parse(begin.data), {
+        status: 202,
+        headers: { "Cache-Control": "private, no-store" },
+      });
+    userMessage = messageSchema.parse(begin.data.userMessage);
+    if (begin.data.state === "completed")
+      return Response.json(
+        restoredVersionSchema.parse({ ...begin.data.saved, userMessage }),
+        { headers: { "Cache-Control": "private, no-store" } },
       );
-    let userMessage;
-    if (existingResult.data) {
-      if (!previousUser.data) throw databaseError(null);
-      userMessage = messageSchema.parse(previousUser.data);
-    } else {
-      const latest = await db
-        .from("versions")
-        .select("id")
-        .eq("project_id", projectId)
-        .order("version_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latest.error) throw databaseError(latest.error);
-      if (latest.data?.id !== input.baseVersionId)
-        throw databaseError({ code: "40001" });
-      if (previousUser.data)
-        userMessage = messageSchema.parse(previousUser.data);
-      else {
-        const inserted = await db
-          .from("messages")
-          .insert({
-            id: input.requestId,
-            project_id: projectId,
-            request_id: input.requestId,
-            role: "user",
-            content: prompt,
-          })
-          .select("*")
-          .single();
-        if (inserted.error) throw databaseError(inserted.error);
-        userMessage = messageSchema.parse(inserted.data);
-      }
-    }
-    // The existing transaction appends a copy and keeps the complete history.
-    // Its project lock also rejects a concurrent change after our head check.
-    const saved = await db.rpc("forge_save_generation", {
-      p_project_id: projectId,
-      p_request_id: input.requestId,
-      p_prompt: prompt,
-      p_base_version_id: input.baseVersionId,
-      p_app: app,
-      p_model: source.model,
-    });
+    claimed = true;
+    deadline.check();
+    const saved = await deadline.waitFor(
+      db.rpc("forge_finish_generation", {
+        p_owner_id: ownerId,
+        p_project_id: projectId,
+        p_request_id: input.requestId,
+        p_run_token: runToken,
+        p_app: app,
+        p_model: source.model,
+      }),
+    );
     if (saved.error) throw databaseError(saved.error);
+    deadline.check();
     return Response.json(
       restoredVersionSchema.parse({ ...saved.data, userMessage }),
-      {
-        headers: { "Cache-Control": "no-store" },
-      },
+      { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    if (deadline?.signal.aborted)
+      error = new GenerationError(
+        "GENERATION_TIMEOUT",
+        "Restore timed out or was interrupted. Reload to check its saved result, then retry if needed.",
+        504,
+      );
+    if (claimed) {
+      const failure = publicGenerationError(error);
+      const settled = await getSupabase(AbortSignal.timeout(5000)).rpc(
+        "forge_fail_generation",
+        {
+          p_owner_id: ownerId,
+          p_project_id: projectId,
+          p_request_id: requestId,
+          p_run_token: runToken,
+          p_code: failure.code,
+          p_message: failure.message,
+        },
+      );
+      if (!settled.error && settled.data?.state === "completed" && userMessage)
+        return Response.json(
+          restoredVersionSchema.parse({ ...settled.data.saved, userMessage }),
+          { headers: { "Cache-Control": "private, no-store" } },
+        );
+    }
     return projectErrorResponse(error);
+  } finally {
+    deadline?.close();
   }
 }

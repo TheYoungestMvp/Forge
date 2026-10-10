@@ -6,6 +6,7 @@ import { POST } from "../src/app/api/generate/route";
 import { generateRequestSchema } from "../src/lib/generation/schema";
 import { validateGeneratedApp } from "../src/lib/generation/validate";
 import { composePreview } from "../src/lib/preview/compose";
+import { issueSession } from "../src/lib/projects/session";
 
 const valid = {
   title: "Counter",
@@ -17,6 +18,68 @@ const valid = {
 
 test("accepts a self-contained interactive application", () => {
   assert.deepEqual(validateGeneratedApp(JSON.stringify(valid)), valid);
+});
+
+test("accepts ordinary top/parent properties, strings, local variables and callback bindings", () => {
+  for (const javascript of [
+    "document.querySelector('button').style.top='10px';",
+    "document.querySelector('button').style['top']='10px';",
+    "const label='parent'; document.querySelector('output').textContent=label;",
+    "const parent={top:10}; document.querySelector('output').textContent=String(parent.top);",
+    "function move(top){document.querySelector('button').style.top=top+'px'} move(10);",
+    "const {top,parent}={top:10,parent:'box'}; document.querySelector('output').textContent=parent+top;",
+    "if(true){var top=10} document.querySelector('button').style.top=top+'px';",
+    "const Widget=class parent{label(){return parent.name}}; document.querySelector('output').textContent=new Widget().label();",
+  ])
+    assert.equal(
+      validateGeneratedApp(JSON.stringify({ ...valid, javascript })).javascript,
+      javascript,
+    );
+  for (const javascript of [
+    "const object={top};",
+    "window.top.document.title='bad';",
+    "globalThis['parent'].document.title='bad';",
+    "self.fetch('/x');",
+    "document.defaultView.parent.document.title='bad';",
+    "function helper(parent){} parent.document.title='bad';",
+    "document.location='https://example.com';",
+    "window.document.cookie='private=value';",
+  ])
+    assert.throws(
+      () => validateGeneratedApp(JSON.stringify({ ...valid, javascript })),
+      /unsupported browser capability/,
+    );
+});
+
+test("large valid code near field and total byte limits still validates", () => {
+  const large = {
+    ...valid,
+    html: valid.html + "<!--" + "x".repeat(49000) + "-->",
+    css: "/*" + "x".repeat(39000) + "*/",
+    javascript: valid.javascript + "\n/*" + "x".repeat(42000) + "*/",
+  };
+  assert.deepEqual(validateGeneratedApp(JSON.stringify(large)), large);
+  assert.throws(
+    () =>
+      validateGeneratedApp(
+        JSON.stringify({ ...large, css: large.css + "x".repeat(2000) }),
+      ),
+    /too large/,
+  );
+  assert.throws(
+    () =>
+      validateGeneratedApp(
+        JSON.stringify({
+          ...valid,
+          javascript: "/*" + "x".repeat(65536) + "*/",
+        }),
+      ),
+    /schema/,
+  );
+  assert.equal(
+    generateRequestSchema.safeParse({ prompt: "x".repeat(4000) }).success,
+    true,
+  );
 });
 
 const cases = [
@@ -162,6 +225,11 @@ test("generation request accepts initial creation and a complete modification ba
 });
 
 test("modification API rejects unsafe, oversized or partial context before contacting a model", async () => {
+  process.env.FORGE_DEPLOYMENT = "local";
+  process.env.FORGE_SESSION_SECRET = "test-session-secret-only-for-validation";
+  const cookie = issueSession(
+    new Request("http://localhost:3000/api/session"),
+  ).cookie!.split(";")[0];
   for (const [body, code, status] of [
     [
       {
@@ -193,7 +261,7 @@ test("modification API rejects unsafe, oversized or partial context before conta
     const response = await POST(
       new Request("http://localhost:3000/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Cookie: cookie },
         body: JSON.stringify(body),
       }),
     );
@@ -220,7 +288,8 @@ test("provider passes exact latest code as context and returns complete validate
     ...darkApp,
     html: valid.html + '<button type="button">Unfinished</button>',
   };
-  let reply = darkApp;
+  let reply: unknown = darkApp;
+  let finishReason = "stop";
   try {
     Object.assign(process.env, {
       LLM_PROVIDER: "openai-compatible",
@@ -236,7 +305,7 @@ test("provider passes exact latest code as context and returns complete validate
       return Response.json({
         choices: [
           {
-            finish_reason: "stop",
+            finish_reason: finishReason,
             message: { content: JSON.stringify(reply) },
           },
         ],
@@ -277,6 +346,34 @@ test("provider passes exact latest code as context and returns complete validate
     );
     assert.equal(outgoing[2].messages.length, 2);
     assert.equal(outgoing[2].messages[1].content, "New app");
+
+    reply = {
+      steps: [
+        "Apply a dark background and readable text",
+        "Preserve task creation, completion and deletion",
+      ],
+    };
+    const planRequest = {
+      prompt: "Make it dark. Return the complete updated application.",
+      currentApp: valid,
+    };
+    const plan = await provider.plan(planRequest, new AbortController().signal);
+    assert.deepEqual(plan, reply);
+    assert.equal(outgoing[3].messages.length, 2);
+    assert.equal(
+      outgoing[3].messages[1].role,
+      "user",
+      "planning code context is data, not a prior assistant answer to imitate",
+    );
+    const planInput = JSON.parse(outgoing[3].messages[1].content);
+    assert.deepEqual(planInput.currentApp, valid);
+    assert.equal(planInput.requirements, planRequest.prompt);
+    assert.match(planInput.instruction, /plan only.*Do not implement/);
+    finishReason = "length";
+    await assert.rejects(
+      provider.plan(planRequest, new AbortController().signal),
+      /implementation plan was cut off/,
+    );
   } finally {
     globalThis.fetch = originalFetch;
     keys.forEach((key, index) => {

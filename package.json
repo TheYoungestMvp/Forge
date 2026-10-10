@@ -3,12 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/run-next.mjs dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/run-next.mjs start",
     "lint": "eslint .",
     "format": "prettier --write src tests",
-    "test": "tsx --conditions=react-server --test tests/generation.test.ts tests/persistence.test.ts"
+    "test": "tsx --conditions=react-server --test tests/generation.test.ts tests/persistence.test.ts tests/generation-field.test.ts tests/storage-transport.test.ts tests/workspace-status.test.ts tests/project-label.test.ts",
+    "check:storage": "tsx --conditions=react-server scripts/check-storage.ts",
+    "predev": "node scripts/check-runtime.mjs",
+    "prebuild": "node scripts/check-runtime.mjs",
+    "prestart": "node scripts/check-runtime.mjs",
+    "check:design": "node scripts/check-design.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
@@ -19,9 +24,11 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
+    "undici": "^7.30.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.19.1",
     "@types/react": "^19.3.0",
@@ -32,5 +39,8 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=24 <25"
   }
 }

@@ -18,13 +18,14 @@ http
       let body = "";
       for await (const chunk of request) body += chunk;
       const data = JSON.parse(body);
+      const planning = data.messages[0].content.startsWith(
+        "Write a concise implementation plan",
+      );
       assert.equal(data.response_format.json_schema.strict, true);
-      assert.deepEqual(data.response_format.json_schema.schema.required, [
-        "title",
-        "html",
-        "css",
-        "javascript",
-      ]);
+      assert.deepEqual(
+        data.response_format.json_schema.schema.required,
+        planning ? ["steps"] : ["title", "html", "css", "javascript"],
+      );
       assert([2, 3].includes(data.messages.length));
       if (data.messages.length === 3) {
         assert.equal(data.messages[1].role, "assistant");
@@ -34,6 +35,26 @@ http
         );
       }
       const prompt = data.messages.at(-1).content;
+      if (planning) {
+        response.writeHead(200, { "Content-Type": "application/json" }).end(
+          JSON.stringify({
+            choices: [
+              {
+                finish_reason: "stop",
+                message: {
+                  content: JSON.stringify({
+                    steps: [
+                      "Create a visible count with an Increment button",
+                      "Update the count on click while preserving the current layout",
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+        return;
+      }
       if (prompt === "provider-auth-error") {
         response.writeHead(401).end();
         return;
@@ -42,7 +63,9 @@ http
         response.writeHead(429).end();
         return;
       }
-      if (prompt === "timeout") {
+      if (prompt === "review-pending") {
+        await new Promise((resolve) => setTimeout(resolve, 15000));
+      } else if (prompt === "timeout") {
         await new Promise((resolve) => setTimeout(resolve, 3000));
       } else {
         await new Promise((resolve) => setTimeout(resolve, 400));

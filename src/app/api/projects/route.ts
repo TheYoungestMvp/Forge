@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { GenerationError } from "@/lib/generation/errors";
 import { createProjectSchema, projectSchema } from "@/lib/projects/schema";
+import { requireSession } from "@/lib/projects/session";
 import {
   assertSameOrigin,
   databaseError,
@@ -11,11 +12,13 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { data, error } = await getSupabase()
+    const ownerId = requireSession(request);
+    const { data, error } = await getSupabase(request.signal)
       .from("projects")
       .select("id,name,created_at,updated_at")
+      .eq("owner_id", ownerId)
       .order("updated_at", { ascending: false })
       .order("id");
     if (error) throw databaseError(error);
@@ -30,6 +33,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
+    const ownerId = requireSession(request);
     if (!request.headers.get("content-type")?.includes("application/json"))
       throw new GenerationError(
         "INVALID_REQUEST",
@@ -60,9 +64,9 @@ export async function POST(request: Request) {
         "Enter a project name containing 1–120 characters.",
         400,
       );
-    const { data, error } = await getSupabase()
+    const { data, error } = await getSupabase(request.signal)
       .from("projects")
-      .insert(result.data)
+      .insert({ ...result.data, owner_id: ownerId })
       .select("id,name,created_at,updated_at")
       .single();
     if (error) throw databaseError(error);
