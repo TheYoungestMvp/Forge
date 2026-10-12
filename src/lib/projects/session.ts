@@ -1,51 +1,11 @@
 import "server-only";
-import {
-  createHmac,
-  randomUUID,
-  timingSafeEqual,
-  createHash,
-} from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { GenerationError } from "@/lib/generation/errors";
+import { assertDemoAccess } from "@/lib/projects/demo-access";
+export { assertDemoAccess } from "@/lib/projects/demo-access";
 
 const cookieName = "forge_session";
 const lifetime = 30 * 24 * 60 * 60;
-
-export function assertDemoAccess(request: Request) {
-  const deployment =
-    process.env.FORGE_DEPLOYMENT ||
-    (process.env.NODE_ENV === "production" ? "public" : "local");
-  const password = process.env.DEMO_ACCESS_PASSWORD || "";
-  if (
-    !["local", "public"].includes(deployment) ||
-    (deployment === "public" &&
-      (password.length < 12 ||
-        (process.env.FORGE_SESSION_SECRET?.length || 0) < 32))
-  )
-    throw new GenerationError(
-      "ACCESS_CONFIGURATION_ERROR",
-      "Public demo access is not configured. Set FORGE_SESSION_SECRET (32+ characters) and DEMO_ACCESS_PASSWORD (12+ characters).",
-      503,
-    );
-  if (!password) return;
-  const authorization = request.headers.get("authorization") || "";
-  const decoded = authorization.startsWith("Basic ")
-    ? Buffer.from(authorization.slice(6), "base64").toString("utf8")
-    : "";
-  const provided = decoded.includes(":")
-    ? decoded.slice(decoded.indexOf(":") + 1)
-    : "";
-  if (
-    !timingSafeEqual(
-      createHash("sha256").update(provided).digest(),
-      createHash("sha256").update(password).digest(),
-    )
-  )
-    throw new GenerationError(
-      "DEMO_ACCESS_REQUIRED",
-      "Enter the demo access password to continue.",
-      401,
-    );
-}
 
 function signingKey() {
   const secret =

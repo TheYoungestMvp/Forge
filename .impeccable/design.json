@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T09:49:30.734Z",
+  "generatedAt": "2026-10-12T09:49:12.000Z",
   "title": "Design System: Forge",
   "extensions": {
     "colorMeta": {
@@ -937,6 +937,11 @@
         "condition": "max-width"
       },
       {
+        "name": "login-single-column",
+        "value": "760px",
+        "condition": "max-width"
+      },
+      {
         "name": "compact-height",
         "value": "700px",
         "condition": "max-height"
@@ -948,13 +953,16 @@
       }
     ],
     "provenance": {
-      "date": "2026-10-09",
+      "date": "2026-10-12",
       "sourceFiles": [
+        "src/app/design-tokens.css",
         "src/app/globals.css",
         "src/components/app-builder.tsx",
+        "src/components/login-screen.tsx",
         "src/app/layout.tsx"
       ],
-      "scope": "Forge 宿主工作区",
+      "scope": "Forge 宿主首页、登录页和工作区",
+      "loginDocumentation": "按 2026-10-12 源码合并登录与访客入口说明，保留现有规范令牌及组件样例；登录页在 760px 切为单列，430px 下保留头像入口。",
       "verification": "确认后的 bolder 实现：首次创作、双栏工作状态；独立本地 fixture 核对示例填入、生成、预览交互、更新失败保留与新建。桌面及窄屏一起核对，未调用真实模型。",
       "tonalRamps": "从现有色值合成的 OKLCH 预览色阶，供面板展示，不是额外的生产设计令牌。",
       "componentSnippets": "静态 HTML/CSS 样例；使用宿主字体变量，独立展示时允许系统回退；未附带 React 或应用交互逻辑。",
@@ -968,7 +976,8 @@
       "overflow": "Page scroll preserves controls in short viewports; chat retains its own scroll.",
       "touchTarget": "44px minimum on coarse pointers or <=800px",
       "desktopWorkingTitle": "Accessible h1 retained; visible repeated slogan removed from desktop work view.",
-      "errorPreview": "On phone, grow the workspace with error content and retain an 18rem preview canvas."
+      "errorPreview": "On phone, grow the workspace with error content and retain an 18rem preview canvas.",
+      "accountEntry": "Retain the avatar login entry and signed-in session menu at <=430px; hide the visitor project heading and let the inline login button span the row."
     },
     "operatingCopy": {
       "capabilities": "Create a single-page app that runs offline in your browser. Project code is saved; preview data resets on reload.",
@@ -1079,7 +1088,7 @@
   ],
   "narrative": {
     "northStar": "绿意实验室",
-    "overview": "Forge 的现有界面是一间专业、精确的数字实验室：首次进入时，用户通过居中宽输入框与具象示例开始创作；提交后进入聊天与预览并列的工作台，再通过下一轮输入推进应用。安静的底色承托鲜明的输入入口，生成结果与实际状态成为工作阶段的视觉重心。\n\n苔绿标记动作、焦点与工作状态，深绿墨承载主要文字，雾白和纯白区分环境与操作面。层次主要由底色和细边框建立；预览框、输入区与选中控件保留轻阴影，输入焦点使用清楚的苔绿轮廓。组件的共同特征是克制、精确、状态清晰。\n\n",
+    "overview": "Forge 的现有界面是一间专业、精确的数字实验室：公开首页通过居中宽输入框与具象示例承接想法，右上角头像提供登录入口；登录后提交需求进入聊天与预览并列的工作台，再通过下一轮输入推进应用。安静的底色承托鲜明的输入入口，生成结果与实际状态成为工作阶段的视觉重心。\n\n苔绿标记动作、焦点与工作状态，深绿墨承载主要文字，雾白和纯白区分环境与操作面。层次主要由底色和细边框建立；预览框、输入区与选中控件保留轻阴影，输入焦点使用清楚的苔绿轮廓。组件的共同特征是克制、精确、状态清晰。\n\n",
     "keyCharacteristics": [
       "绿灰色环境、白色操作面与低强度绿色强调。",
       "首次创作聚焦输入；提交后聊天与预览并列，窄屏按面板切换。",

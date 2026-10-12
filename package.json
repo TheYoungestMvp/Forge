@@ -8,7 +8,7 @@
     "start": "node scripts/run-next.mjs start",
     "lint": "eslint .",
     "format": "prettier --write src tests",
-    "test": "tsx --conditions=react-server --test tests/generation.test.ts tests/persistence.test.ts tests/generation-field.test.ts tests/storage-transport.test.ts tests/workspace-status.test.ts tests/project-label.test.ts",
+    "test": "tsx --conditions=react-server --test tests/generation.test.ts tests/persistence.test.ts tests/generation-field.test.ts tests/storage-transport.test.ts tests/workspace-status.test.ts tests/project-label.test.ts tests/demo-access.test.ts",
     "check:storage": "tsx --conditions=react-server scripts/check-storage.ts",
     "predev": "node scripts/check-runtime.mjs",
     "prebuild": "node scripts/check-runtime.mjs",

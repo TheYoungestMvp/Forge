@@ -28,7 +28,7 @@ flowchart LR
 
 `POST /api/session` 复用或创建随机 UUID 匿名身份。签名 cookie 由 HMAC-SHA256 校验，HttpOnly、SameSite=Strict，有效期 30 天；身份来自 cookie，不来自请求 body。公开模式需独立 32+ 字符签名密钥和 12+ 字符访问密码，cookie 为 Secure。
 
-公开访问密码由 Next.js proxy 和 API 身份 helper 校验，使用 HTTP Basic challenge；公开模式缺配置时拒绝页面 / API。部署必须使用 HTTPS。服务端 key 仅在服务器读数据库，浏览器无法获得它或调用业务表 / RPC。
+首页公开展示，未登录时不建立项目会话或请求私有项目 API。右上角头像进入 `/login`；提交需求先显示登录提示，点击后进入登录页。`POST /api/access` 同源校验服务端配置的 `FORGE_LOGIN_USERNAME`（默认 `demo`）与 `DEMO_ACCESS_PASSWORD`，使用固定长度摘要进行恒定时间比较，不区分用户名和密码错误。成功设置 7 天的 HMAC 访问 cookie；签名绑定用户名和密码，凭据轮换即失效。Next.js proxy 和 API 身份 helper 共同校验访问 cookie；不再发送 HTTP Basic challenge。`DELETE /api/access` 仅移除访问 cookie，不移除原有 30 天项目身份。当前仍是一个可配置账号与按浏览器隔离的项目，不提供正式注册或跨设备身份。公开模式缺配置时拒绝登录 / 私有 API。部署必须使用 HTTPS。服务端 key 仅在服务器读数据库，浏览器无法获得它或调用业务表 / RPC。
 
 所有者条件为 `projects.owner_id = verifiedSessionId`。列表查询显式筛选；加载 / 生成 / 更新 / 失败 / 完成 RPC 全部检查所有者；Restore 在读取源码前检查项目所有者，再由 RPC 重验。越权与不存在均返回 404。
 

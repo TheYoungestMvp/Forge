@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   AlertCircle,
@@ -15,6 +16,7 @@ import {
   History,
   Layers2,
   LoaderCircle,
+  LockKeyhole,
   MessageSquare,
   Monitor,
   PanelLeft,
@@ -23,6 +25,7 @@ import {
   Smartphone,
   Sparkles,
   Trash2,
+  UserRound,
   WandSparkles,
   XCircle,
 } from "lucide-react";
@@ -103,6 +106,9 @@ function versionTime(value: string) {
 
 async function projectJson(response: Response) {
   const body = await response.json().catch(() => null);
+  if (response.status === 401 && body?.error?.code === "DEMO_ACCESS_REQUIRED") {
+    window.dispatchEvent(new Event("forge-login-required"));
+  }
   if (!response.ok)
     throw new Error(
       typeof body?.error?.message === "string"
@@ -166,7 +172,15 @@ function ExampleArtwork({ kind }: { kind: string }) {
   );
 }
 
-export function AppBuilder() {
+export function AppBuilder({
+  authenticated: initiallyAuthenticated = true,
+  accessRequired = false,
+}: {
+  authenticated?: boolean;
+  accessRequired?: boolean;
+}) {
+  const router = useRouter();
+  const [authenticated, setAuthenticated] = useState(initiallyAuthenticated);
   const [messages, setMessages] = useState<Message[]>([]);
   const [prompt, setPrompt] = useState("");
   const [composerFocused, setComposerFocused] = useState(false);
@@ -186,7 +200,11 @@ export function AppBuilder() {
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
   const deleteCancelRef = useRef<HTMLButtonElement>(null);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  const [projectLoading, setProjectLoading] = useState(true);
+  const [projectLoading, setProjectLoading] = useState(authenticated);
+  const [signingOut, setSigningOut] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [loginRequired, setLoginRequired] = useState(false);
+  const loginContinueRef = useRef<HTMLButtonElement>(null);
   const [recoveringRequestId, setRecoveringRequestId] = useState<string | null>(
     null,
   );
@@ -235,7 +253,7 @@ export function AppBuilder() {
     preview && latestVersion && preview.versionId !== latestVersion.id,
   );
   const generationDisabled = inputDisabled || isHistorical;
-  const hasStarted = messages.length > 0 || Boolean(preview);
+  const hasStarted = authenticated && (messages.length > 0 || Boolean(preview));
   const status = workspaceStatus({
     generating: isRunning,
     restoring: isRestoring,
@@ -246,6 +264,51 @@ export function AppBuilder() {
   });
   const workHeadingRef = useRef<HTMLHeadingElement>(null);
   const wasStartedRef = useRef(false);
+
+  function openLogin() {
+    try {
+      sessionStorage.setItem(
+        "forge-login-draft",
+        JSON.stringify({ prompt, projectName, savedAt: Date.now() }),
+      );
+    } catch {
+      /* Login must work even when browser storage is blocked. */
+    }
+    router.push(
+      `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+    );
+  }
+
+  async function signOut() {
+    if (signingOut || inputDisabled) return;
+    setSigningOut(true);
+    setAccountError(null);
+    try {
+      const response = await fetch("/api/access", {
+        method: "DELETE",
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error("Sign out failed");
+      window.location.reload();
+    } catch {
+      setAccountError("退出失败，请检查网络后重试。");
+      setSigningOut(false);
+    }
+  }
+
+  const requireLogin = useCallback(() => {
+    deleteDialogRef.current?.close();
+    setDeleteTarget(null);
+    setAuthenticated(false);
+    setLoginRequired(true);
+    requestAnimationFrame(() => loginContinueRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("forge-login-required", requireLogin);
+    return () =>
+      window.removeEventListener("forge-login-required", requireLogin);
+  }, [requireLogin]);
 
   useEffect(() => {
     const dialog = deleteDialogRef.current;
@@ -424,22 +487,51 @@ export function AppBuilder() {
   );
 
   useEffect(() => {
+    if (!authenticated) return;
+    let loadVersion = 0;
     const load = () => {
+      const version = ++loadVersion;
       requestRef.current?.abort();
       requestRef.current = null;
       setIsRunning(false);
       setRestoringVersionId(null);
       void loadWorkspace(
         new URL(window.location.href).searchParams.get("project"),
-      );
+      ).then(() => {
+        if (version !== loadVersion) return;
+        try {
+          const raw = sessionStorage.getItem("forge-login-draft");
+          if (!raw) return;
+          const draft = JSON.parse(raw);
+          sessionStorage.removeItem("forge-login-draft");
+          if (
+            typeof draft.prompt === "string" &&
+            draft.prompt.length <= 4000 &&
+            typeof draft.projectName === "string" &&
+            draft.projectName.length <= 120 &&
+            Date.now() - draft.savedAt < 30 * 60 * 1000
+          ) {
+            setPrompt(draft.prompt);
+            setProjectName(draft.projectName);
+            if (draft.prompt)
+              setProjectNotice(
+                "Your idea is ready. Select Start building to continue.",
+              );
+            promptRef.current?.focus();
+          }
+        } catch {
+          /* Browser storage may be unavailable; access still works. */
+        }
+      });
     };
     load();
     window.addEventListener("popstate", load);
     return () => {
+      loadVersion += 1;
       window.removeEventListener("popstate", load);
       projectRequestRef.current?.abort();
     };
-  }, [loadWorkspace]);
+  }, [authenticated, loadWorkspace]);
 
   useEffect(() => {
     if (!recoveringRequestId || !project) return;
@@ -609,6 +701,10 @@ export function AppBuilder() {
   }
 
   async function createNamedProject() {
+    if (!authenticated) {
+      requireLogin();
+      return;
+    }
     if (inputDisabled || projectRequestRef.current) return;
     const controller = new AbortController();
     projectRequestRef.current = controller;
@@ -661,6 +757,10 @@ export function AppBuilder() {
       content.length > 4000
     )
       return;
+    if (!authenticated) {
+      requireLogin();
+      return;
+    }
     const controller = new AbortController();
     followChatRef.current = true;
     requestRef.current = controller;
@@ -725,6 +825,13 @@ export function AppBuilder() {
       });
       if (!response.ok) {
         const failure = await response.json().catch(() => null);
+        if (
+          response.status === 401 &&
+          failure?.error?.code === "DEMO_ACCESS_REQUIRED"
+        ) {
+          requireLogin();
+          setPrompt(content);
+        }
         errorCode =
           typeof failure?.error?.code === "string" ? failure.error.code : "";
         throw new Error(
@@ -919,6 +1026,10 @@ export function AppBuilder() {
   }
 
   function startNewApp() {
+    if (!authenticated) {
+      requireLogin();
+      return;
+    }
     if (inputDisabled) return;
     clearWorkspace();
     setProject(null);
@@ -1071,7 +1182,7 @@ export function AppBuilder() {
 
   return (
     <div
-      className={`builder-shell ${hasStarted ? "builder-working" : "builder-start"}`}
+      className={`builder-shell ${hasStarted ? "builder-working" : "builder-start"} ${!authenticated ? "builder-visitor" : ""}`}
     >
       <header className="app-header">
         <Link href="/" className="brand" aria-label="Forge home">
@@ -1079,7 +1190,7 @@ export function AppBuilder() {
             <Layers2 size={19} strokeWidth={2.3} />
           </span>
           <span>
-            forge<span className="brand-dot">.</span>
+            Forge<span className="brand-dot">.</span>
           </span>
         </Link>
         <span className="header-divider" />
@@ -1098,19 +1209,21 @@ export function AppBuilder() {
         <div className="header-right">
           <span className="workspace-note">
             <span className="status-dot" />
-            {projectLoading
-              ? "Loading projects…"
-              : isDeleting
-                ? "Deleting project…"
-                : isRestoring
-                  ? "Saving restored version…"
-                  : isRunning
-                    ? "Saving as you build"
-                    : storageError
-                      ? "Storage unavailable"
-                      : project
-                        ? "Saved"
-                        : "Ready to create"}
+            {!authenticated
+              ? "登录后开始构建"
+              : projectLoading
+                ? "Loading projects…"
+                : isDeleting
+                  ? "Deleting project…"
+                  : isRestoring
+                    ? "Saving restored version…"
+                    : isRunning
+                      ? "Saving as you build"
+                      : storageError
+                        ? "Storage unavailable"
+                        : project
+                          ? "Saved"
+                          : "Ready to create"}
           </span>
           {(hasStarted || project) && (
             <button
@@ -1122,91 +1235,128 @@ export function AppBuilder() {
               <Plus size={12} /> New project
             </button>
           )}
-          <span className="avatar" aria-label="Demo user">
-            Y
-          </span>
+          {authenticated ? (
+            <details className="account-menu">
+              <summary
+                className="avatar"
+                aria-label={
+                  accessRequired ? "已登录，打开会话菜单" : "打开本地会话菜单"
+                }
+              >
+                <UserRound size={17} aria-hidden="true" />
+              </summary>
+              <div className="account-popover">
+                <strong>{accessRequired ? "已登录" : "本地浏览器会话"}</strong>
+                <p>项目保存在当前浏览器会话中。</p>
+                {accountError && <p role="alert">{accountError}</p>}
+                {accessRequired && (
+                  <button
+                    type="button"
+                    onClick={() => void signOut()}
+                    disabled={signingOut || inputDisabled}
+                  >
+                    {signingOut ? "正在退出…" : "退出登录"}
+                  </button>
+                )}
+              </div>
+            </details>
+          ) : (
+            <button
+              type="button"
+              className="account-login"
+              onClick={openLogin}
+              aria-label="登录 Forge"
+            >
+              <span className="avatar">
+                <UserRound size={17} aria-hidden="true" />
+              </span>
+              <span>登录</span>
+            </button>
+          )}
         </div>
       </header>
-      <ProjectControls
-        key={hasStarted ? "working" : "entry"}
-        working={hasStarted}
-      >
-        <div className="project-toolbar" aria-label="Project controls">
-          <div className="project-picker">
-            <label htmlFor="saved-project">Open project</label>
-            <select
-              id="saved-project"
-              value={project?.id || ""}
-              disabled={inputDisabled}
-              onChange={(event) => {
-                const id = event.target.value;
-                if (!id) {
-                  startNewApp();
-                  return;
+      {authenticated && (
+        <ProjectControls
+          key={hasStarted ? "working" : "entry"}
+          working={hasStarted}
+        >
+          <div className="project-toolbar" aria-label="Project controls">
+            <div className="project-picker">
+              <label htmlFor="saved-project">Open project</label>
+              <select
+                id="saved-project"
+                value={project?.id || ""}
+                disabled={inputDisabled}
+                onChange={(event) => {
+                  const id = event.target.value;
+                  if (!id) {
+                    startNewApp();
+                    return;
+                  }
+                  void loadWorkspace(id, false);
+                }}
+              >
+                <option value="">Choose a saved project</option>
+                {projects.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {projectLabel(item)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Reload projects"
+                disabled={inputDisabled}
+                onClick={() =>
+                  void loadWorkspace(project?.id || loadTargetRef.current)
                 }
-                void loadWorkspace(id, false);
+              >
+                <RotateCcw size={15} />
+              </button>
+              <button
+                ref={deleteButtonRef}
+                type="button"
+                className="project-delete-button"
+                disabled={!project || inputDisabled}
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteTarget(project);
+                }}
+              >
+                <Trash2 size={15} aria-hidden="true" /> Delete project
+              </button>
+            </div>
+            <form
+              className="project-create"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void createNamedProject();
               }}
             >
-              <option value="">Choose a saved project</option>
-              {projects.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {projectLabel(item)}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Reload projects"
-              disabled={inputDisabled}
-              onClick={() =>
-                void loadWorkspace(project?.id || loadTargetRef.current)
-              }
-            >
-              <RotateCcw size={15} />
-            </button>
-            <button
-              ref={deleteButtonRef}
-              type="button"
-              className="project-delete-button"
-              disabled={!project || inputDisabled}
-              onClick={() => {
-                setDeleteError(null);
-                setDeleteTarget(project);
-              }}
-            >
-              <Trash2 size={15} aria-hidden="true" /> Delete project
-            </button>
+              <label htmlFor="project-name" className="sr-only">
+                New project name
+              </label>
+              <input
+                id="project-name"
+                value={projectName}
+                onChange={(event) => setProjectName(event.target.value)}
+                maxLength={120}
+                placeholder="Name a new project"
+                disabled={inputDisabled}
+              />
+              <button
+                type="submit"
+                className="new-app-button"
+                disabled={inputDisabled}
+              >
+                <Plus size={14} /> Create project
+              </button>
+            </form>
           </div>
-          <form
-            className="project-create"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void createNamedProject();
-            }}
-          >
-            <label htmlFor="project-name" className="sr-only">
-              New project name
-            </label>
-            <input
-              id="project-name"
-              value={projectName}
-              onChange={(event) => setProjectName(event.target.value)}
-              maxLength={120}
-              placeholder="Name a new project"
-              disabled={inputDisabled}
-            />
-            <button
-              type="submit"
-              className="new-app-button"
-              disabled={inputDisabled}
-            >
-              <Plus size={14} /> Create project
-            </button>
-          </form>
-        </div>
-      </ProjectControls>
-      {storageError && (
+        </ProjectControls>
+      )}
+      {authenticated && storageError && (
         <div className="storage-error" role="alert">
           <AlertCircle size={18} />
           <div>
@@ -1224,7 +1374,7 @@ export function AppBuilder() {
           </button>
         </div>
       )}
-      {projectLoading && (
+      {authenticated && projectLoading && (
         <p className="project-loading" role="status">
           <LoaderCircle size={16} className="animate-spin" /> Loading saved
           projects and conversation…
@@ -1511,6 +1661,27 @@ export function AppBuilder() {
               void submitPrompt();
             }}
           >
+            {!authenticated && loginRequired && (
+              <div
+                className="login-required-notice"
+                role="status"
+                aria-live="polite"
+              >
+                <LockKeyhole size={18} aria-hidden="true" />
+                <div>
+                  <strong>请先登录后再使用</strong>
+                  <p>登录后即可构建应用，并继续修改和保存项目。</p>
+                </div>
+                <button
+                  ref={loginContinueRef}
+                  type="button"
+                  onClick={openLogin}
+                >
+                  登录并继续
+                  <ArrowRight size={16} aria-hidden="true" />
+                </button>
+              </div>
+            )}
             <div className={`composer ${isRunning ? "composer-busy" : ""}`}>
               <label htmlFor="prompt" className="sr-only">
                 Describe the app you want to create
@@ -1563,6 +1734,11 @@ export function AppBuilder() {
               <p id="app-capabilities" className="app-capabilities">
                 Create a single-page app that runs offline in your browser.
                 Project code is saved; preview data resets on reload.
+                {!authenticated && (
+                  <span className="visitor-login-note">
+                    开始构建前需要登录，你输入的想法会为你保留。
+                  </span>
+                )}
               </p>
             )}
             <div className="composer-hint">

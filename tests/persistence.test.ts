@@ -17,6 +17,7 @@ import {
   readSession,
   assertDemoAccess,
 } from "../src/lib/projects/session";
+import { issueDemoAccess } from "../src/lib/projects/demo-access";
 import { getSupabase, databaseError } from "../src/lib/projects/server";
 import { recoverRequest } from "../src/lib/generation/recovery";
 import { projectSnapshotSchema } from "../src/lib/projects/schema";
@@ -73,9 +74,13 @@ test("public mode fails closed without configuration and requires demo password"
       /Public demo access is not configured/,
     );
     process.env.DEMO_ACCESS_PASSWORD = "a-valid-demo-password";
-    assert.throws(() => assertDemoAccess(request(url)), /demo access password/);
+    assert.throws(() => assertDemoAccess(request(url)), /Sign in/);
     const headers = {
-      Authorization: `Basic ${Buffer.from("demo:a-valid-demo-password").toString("base64")}`,
+      Cookie: issueDemoAccess(
+        new Request(url),
+        "demo",
+        "a-valid-demo-password",
+      )!.split(";")[0],
     };
     const signed = issueSession(new Request(url, { headers }));
     assert.match(signed.cookie!, /; Secure$/);

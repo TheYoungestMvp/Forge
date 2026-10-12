@@ -64,12 +64,13 @@ npm run check:storage -- --samples 12 --interval-ms 6000
 ```dotenv
 FORGE_DEPLOYMENT=public
 FORGE_SESSION_SECRET=<独立随机密钥，至少32字符>
+FORGE_LOGIN_USERNAME=<登录用户名>
 DEMO_ACCESS_PASSWORD=<演示访问密码，至少12字符>
 ```
 
-公开部署必须使用 HTTPS。生产环境未明确选择 local 时默认 public；public 缺上述配置会拒绝页面 / API。浏览器使用 HTTP Basic 密码提示，用户名可填 `demo`。本地生产构建请保持 `FORGE_DEPLOYMENT=local` 并绑定 loopback。
+公开部署必须使用 HTTPS。生产环境未明确选择 local 时默认 public；public 缺签名密钥或密码配置时拒绝登录 / 私有 API。首页可公开浏览，右上角头像提供登录入口；未登录时提交需求先显示“请先登录后再使用”，点击“登录并继续”才进入 `/login`。表单同时校验用户名和密码，用户名通过服务端 `FORGE_LOGIN_USERNAME` 配置，未设置时默认为 `demo`；密码沿用 `DEMO_ACCESS_PASSWORD`。本地生产构建请保持 `FORGE_DEPLOYMENT=local` 并绑定 loopback。
 
-访问密码保护演示入口，签名 HttpOnly / SameSite=Strict 匿名 cookie 区分每个浏览器。公开 cookie 为 Secure；所有 API / RPC 校验项目所有者。清除 cookie、换浏览器 / 设备或签名密钥变更后没有自助找回。这里使用服务端匿名 cookie，不依赖 Supabase Auth 匿名登录功能。
+登录成功设置独立的签名 HttpOnly / SameSite=Strict 访问 cookie，有效期 7 天；用户名、密码或签名密钥更换后失效。签名匿名项目 cookie 继续区分每个浏览器，退出登录只清除访问 cookie，重新登录保留原有项目身份。公开 cookie 为 Secure；所有私有 API / RPC 继续校验访问权限及项目所有者。登录前输入的需求在当前标签页临时保存，30 分钟内登录后恢复，用户再次提交才开始生成。清除项目 cookie、换浏览器 / 设备或签名密钥变更后没有自助找回。当前是一个可配置账号和独立浏览器项目会话，不提供注册、找回密码或跨设备项目同步。
 
 数据库提供每会话小时 10 / 天 30 次操作尝试、全局生成小时 30 / 天 100 次尝试的保守限额，包含失败重试；进行中 / 完成重放不再消耗预算。每会话同时只允许一个生成 / 恢复。额度保存在数据库，进程重启不会清空，轮换匿名 cookie 无法绕过全局限额。该保护不是计费系统，也不代表有无限公开容量。
 
@@ -87,9 +88,9 @@ DEMO_ACCESS_PASSWORD=<演示访问密码，至少12字符>
 npx vercel --prod
 ```
 
-环境变量变更需要重新部署。发布后使用正式域名验收密码挑战、创建、真实生成 / 修改、Restore、刷新和匿名隔离；构建成功不等于业务验收通过。
+环境变量变更需要重新部署。发布后使用正式域名验收公开首页、头像登录入口、使用前提示、用户名 / 密码校验、退出后重新登录、创建、真实生成 / 修改、Restore、刷新和匿名隔离；构建成功不等于业务验收通过。
 
-当前正式地址：[forge-agent-builder.vercel.app](https://forge-agent-builder.vercel.app)。访问用户名为 `demo`，演示密码由部署者单独提供，不保存在仓库。已完成真实线上验收，详见 [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)。
+正式地址：[forge-agent-builder.vercel.app](https://forge-agent-builder.vercel.app)。账号凭据由部署者配置并单独提供，不保存在仓库。已发布版本与待发布改动的验收状态见 [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md)。
 
 ## 模型配置与工作流
 
@@ -136,6 +137,7 @@ npm start -- --hostname 127.0.0.1 --port 3001
 ## API 与一致性
 
 - POST `/api/session`：建立 / 复用签名匿名 cookie。
+- POST `/api/access`：同源用户名 / 密码验证，设置签名访问 cookie；DELETE `/api/access`：退出登录，保留项目 cookie。
 - GET / POST `/api/projects`：当前所有者列表 / 创建。
 - GET `/api/projects/{id}`：项目、消息、版本；`?view=status` 省略版本源码，供刷新恢复。
 - DELETE `/api/projects/{id}`：删除当前所有者的闲置项目及其消息、版本，成功返回 204；不存在 / 越权 404，进行中 409。
