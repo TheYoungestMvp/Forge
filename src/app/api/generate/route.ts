@@ -13,6 +13,13 @@ import {
   type GenerationEvent,
 } from "@/lib/generation/schema";
 import { validateGeneratedApp } from "@/lib/generation/validate";
+import { runAppGeneration } from "@/lib/generation/run";
+import {
+  canonicalTask,
+  resolveTaskSpec,
+  taskSpecSchema,
+} from "@/lib/generation/task";
+import { requireToolData } from "@/lib/generation/tools";
 import {
   messageSchema,
   projectSchema,
@@ -116,6 +123,36 @@ export async function POST(request: Request) {
     );
     if (begun.error) throw databaseError(begun.error);
     const state = begun.data?.state;
+    claimed = state === "claimed";
+    const storedTaskValue =
+      state === "completed"
+        ? begun.data?.saved?.message?.task_contract
+        : begun.data?.message?.task_contract;
+    const storedTask = storedTaskValue
+      ? taskSpecSchema.parse(storedTaskValue)
+      : undefined;
+    if (
+      state === "completed" &&
+      input.task &&
+      !storedTask &&
+      canonicalTask(input.task) !== canonicalTask(resolveTaskSpec(input.prompt))
+    )
+      throw new GenerationError(
+        "REQUEST_ID_CONFLICT",
+        "A completed legacy request cannot be replayed as a different structured task.",
+        409,
+      );
+    if (
+      input.task &&
+      storedTask &&
+      canonicalTask(input.task) !== canonicalTask(storedTask)
+    )
+      throw new GenerationError(
+        "REQUEST_ID_CONFLICT",
+        "This request ID is already bound to a different task contract.",
+        409,
+      );
+    const task = resolveTaskSpec(input.prompt, storedTask ?? input.task);
     if (state === "processing") {
       deadline.close();
       return Response.json(pendingGenerationSchema.parse(begun.data), {
@@ -142,9 +179,20 @@ export async function POST(request: Request) {
         },
       );
     }
-    claimed = true;
     const begin = claimedSchema.parse(begun.data);
-    const context: GenerateRequest = { prompt: input.prompt };
+    const boundTask = await deadline.waitFor(
+      db.rpc("forge_bind_task_contract", {
+        p_owner_id: ownerId,
+        p_project_id: input.projectId,
+        p_request_id: input.requestId,
+        p_run_token: runToken,
+        p_task_contract: task,
+      }),
+    );
+    if (boundTask.error) throw databaseError(boundTask.error);
+    begin.message = messageSchema.parse(boundTask.data);
+    begin.userMessage.task_contract = task;
+    const context: GenerateRequest = { prompt: input.prompt, task };
     if (begin.currentVersion)
       context.currentApp = validateGeneratedApp(
         JSON.stringify(toAppVersion(begin.currentVersion).app),
@@ -183,57 +231,73 @@ export async function POST(request: Request) {
           send({ type: "message", message: begin.message });
           send({ type: "status", step: 0 });
           const provider = createAppGeneratorProvider();
-          await advance(1, "Planning application");
-          const plan = await activeDeadline.waitFor(
-            provider.plan(context, activeDeadline.signal),
+          let savedResult:
+            ReturnType<typeof savedGenerationSchema.parse> | undefined;
+          const { app, tools } = await runAppGeneration(
+            context,
+            provider,
+            activeDeadline,
+            async (phase, plan) => {
+              if (phase === "planning")
+                await advance(1, "Planning application");
+              else if (phase === "generating" && plan) {
+                await advance(2, "Generating application code", plan.steps);
+                send({ type: "plan", plan });
+              } else if (phase === "validating")
+                await advance(3, "Validating application");
+              else if (phase === "repairing")
+                await advance(3, "Correcting invalid generated output");
+            },
+            {
+              authority: {
+                mode: "project",
+                ownerId,
+                projectId: activeInput.projectId!,
+                requestId: activeInput.requestId!,
+                runToken,
+                capabilities: [
+                  "project:read",
+                  "model:invoke",
+                  "app:validate",
+                  "version:save",
+                ],
+              },
+              baseVersionId: activeInput.baseVersionId ?? null,
+              async saveVersion({ app }) {
+                const saved = await db.rpc("forge_finish_generation", {
+                  p_owner_id: ownerId,
+                  p_project_id: activeInput.projectId,
+                  p_request_id: activeInput.requestId,
+                  p_run_token: runToken,
+                  p_app: app,
+                  p_model: provider.model,
+                });
+                if (saved.error) throw databaseError(saved.error);
+                savedResult = savedGenerationSchema.parse(saved.data);
+                return { versionId: savedResult.version.id };
+              },
+            },
           );
-          activeDeadline.check();
-          await advance(2, "Generating application code", plan.steps);
-          send({ type: "plan", plan });
-          const raw = await activeDeadline.waitFor(
-            provider.generate(context, activeDeadline.signal, undefined, plan),
-          );
-          activeDeadline.check();
-          await advance(3, "Validating application");
-          let app;
-          try {
-            app = validateGeneratedApp(raw);
-          } catch (error) {
-            if (
-              !(error instanceof GenerationError) ||
-              error.code !== "INVALID_GENERATED_APP"
-            )
-              throw error;
-            activeDeadline.check();
-            await advance(3, "Correcting invalid generated output");
-            app = validateGeneratedApp(
-              await activeDeadline.waitFor(
-                provider.generate(
-                  context,
-                  activeDeadline.signal,
-                  error.message,
-                  plan,
-                ),
-              ),
-            );
-          }
           activeDeadline.check();
           await advance(4, "Saving version");
-          const saved = await activeDeadline.waitFor(
-            db.rpc("forge_finish_generation", {
-              p_owner_id: ownerId,
-              p_project_id: activeInput.projectId,
-              p_request_id: activeInput.requestId,
-              p_run_token: runToken,
-              p_app: app,
-              p_model: provider.model,
+          requireToolData(
+            await tools.invoke("save_version", {
+              projectId: activeInput.projectId,
+              baseVersionId: activeInput.baseVersionId ?? null,
+              app,
             }),
+            "save_version",
           );
-          if (saved.error) throw databaseError(saved.error);
           activeDeadline.check();
+          if (!savedResult)
+            throw new GenerationError(
+              "TOOL_INVALID_RESULT",
+              "The saved version could not be confirmed.",
+              503,
+            );
           send({
             type: "complete",
-            saved: savedGenerationSchema.parse(saved.data),
+            saved: savedResult,
           });
         } catch (error) {
           // A separate bounded reconciliation may read an already committed success.
@@ -243,6 +307,7 @@ export async function POST(request: Request) {
                 "GENERATION_TIMEOUT",
                 "The request timed out or was interrupted. Reload to check the saved result, then retry if needed.",
                 504,
+                publicGenerationError(error).failure,
               )
             : publicGenerationError(error);
           const settled = await getSupabase(AbortSignal.timeout(5000)).rpc(
@@ -274,6 +339,7 @@ export async function POST(request: Request) {
               type: "error",
               code: visible.code,
               message: visible.message,
+              ...(visible.failure ? { failure: visible.failure } : {}),
             });
           }
         } finally {

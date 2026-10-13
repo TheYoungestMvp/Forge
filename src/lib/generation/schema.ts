@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { messageSchema, savedGenerationSchema } from "@/lib/projects/schema";
+import { taskSpecSchema } from "./task";
+import { toolFailureSchema } from "./tool-failure";
 
 const code = z.string().max(65536);
 
@@ -79,6 +81,7 @@ export const appJsonSchema = {
 export const generateRequestSchema = z.strictObject({
   prompt: z.string().trim().min(1).max(4000),
   currentApp: generatedAppSchema.optional(),
+  task: taskSpecSchema.optional(),
   projectId: z.uuid().optional(),
   requestId: z.uuid().optional(),
   baseVersionId: z.uuid().nullable().optional(),
@@ -114,6 +117,7 @@ export const generationEventSchema = z.discriminatedUnion("type", [
     type: z.literal("error"),
     code: z.string().max(80),
     message: z.string().max(600),
+    failure: toolFailureSchema.optional(),
   }),
 ]);
 

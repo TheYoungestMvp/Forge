@@ -10,7 +10,8 @@
 flowchart LR
   UI[项目 / Chat / Versions] -->|签名 cookie| API[Next.js Route Handlers]
   API --> Claim[数据库认领 / 限额 / 固定期限]
-  Claim --> Plan[LLM 具体规划]
+  Claim --> Task[不可变任务契约绑定]
+  Task --> Plan[受控 plan_app 具体规划]
   Plan --> Gen[LLM 完整代码生成]
   Gen --> Validate[结构 / HTML / JS / 字节校验]
   Validate --> Save[带执行 token 的原子提交]
@@ -38,7 +39,7 @@ flowchart LR
 
 ## 实际数据库 Schema
 
-迁移顺序：`001_persistence.sql` → `002_demo_hardening.sql`。没有新增第四张业务表。
+迁移顺序：`001_persistence.sql` → `002_demo_hardening.sql` → `003_project_deletion.sql` → `004_task_contract.sql`。004在消息表保存任务契约，使用已有项目 / 消息 / 版本关系。
 
 | 表       | 字段                                                                                                                                                                                                                   |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,7 +47,7 @@ flowchart LR
 | messages | id、project_id、request_id、role、content、created_at、seq；助手工作流使用 status、phase、plan、error_code、base_version_id、deadline_at、run_token、finished_at、operation、source_version_id、attempts、attempted_at |
 | versions | id（成功 requestId）、project_id、prompt、title、html、css、javascript、created_at、version_number、parent_id、model                                                                                                   |
 
-约束继续包括消息 `(project_id,request_id,role)` 唯一、版本 `(project_id,version_number)` 唯一和源码字节限制。plan 保存 2–4 个用户可读步骤；用户消息不承载工作流状态。run_token 不返回前端。
+约束继续包括消息 `(project_id,request_id,role)` 唯一、版本 `(project_id,version_number)` 唯一和源码字节限制。plan保存2–4个用户可读步骤；task_contract在同请求的用户与助手消息中保存相同不可变契约，旧消息可以为NULL。run_token不返回前端。
 
 `status=processing/completed/failed` 与 phase 0–4 持久化；完成状态只能通过保存版本的事务产生。没有当前版本指针，最大的 version_number 为最新版本。
 
@@ -66,6 +67,8 @@ flowchart LR
 限额在认领事务内检查：每匿名会话每小时 10 / 每天 30 次尝试；代码生成全局每小时 30 / 每天 100 次。失败重试也计数，进行中或完成重放不计数。重试使用同消息的累计尝试权重与最近尝试时间，限额统计偏保守；不是精确计费。全局限额使创建新匿名 cookie 不能无限触发付费调用。恢复也占用会话操作预算和活动锁。
 
 ## 生成、恢复与期限
+
+`TaskSpec v1`声明目标、需求、内存数据字段、保留项和验收动作；字段和UTF-8总大小受严格schema约束。任务在认领后通过`forge_bind_task_contract`绑定，重试和重放保留原任务。`runAppGeneration`调用固定工具注册表，输入、执行模式、能力、项目 / 版本 / 任务绑定、次数和输出token预留均在处理器前校验。生产最多7次工具尝试、3次模型调用、1次修正，全部共用入口期限；browser检查只授予离线评测。完整工具列表、机器可读契约和失败结果见[TASK_TOOL_CONTRACT.md](./TASK_TOOL_CONTRACT.md)。
 
 Provider 提供 `plan` 和 `generate`。plan 返回严格 `{ steps: string[2..4] }`；generate 返回严格四字段 App。两次调用共享服务器信号和期限，修改时都接收数据库的当前完整代码。代码调用包含已保存计划；一次修正保持同一 prompt、App 和计划。
 
@@ -122,3 +125,7 @@ tests/helpers/database.ts
 ```
 
 测试使用真实嵌入式 PostgreSQL 执行两份迁移和事务，HTTP 层和模型响应受控，不访问用户数据库或付费模型。浏览器故障 fixture 与真实 Supabase / LLM 验收分开记录。交付检查为 npm ci / test / lint / build；环境和演示步骤见 README。
+
+## 下一阶段设计
+
+[正式账号、业务持久化与受限 SDK](./REAL_DATA_DESIGN.md) 是独立设计提案，包含身份迁移、服务端授权、数据事务与 iframe 桥接；尚未改变本文件描述的当前实现。

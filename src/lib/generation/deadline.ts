@@ -1,8 +1,11 @@
 import "server-only";
 import { GenerationError } from "./errors";
 
-export function generationDeadline(request: Request, startedAt: number) {
-  const timeout = Number(process.env.GENERATION_TIMEOUT_MS || 120000);
+export function generationDeadline(
+  request: Request,
+  startedAt: number,
+  timeout = Number(process.env.GENERATION_TIMEOUT_MS || 120000),
+) {
   if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 120000)
     throw new GenerationError(
       "CONFIGURATION_ERROR",

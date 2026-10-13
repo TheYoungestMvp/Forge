@@ -2,6 +2,9 @@
 /.next/
 /out/
 /coverage/
+/.npm-cache/
+/eval-results/
+/evals/pricing.local.json
 *.tsbuildinfo
 next-env.d.ts
 .env*

@@ -34,7 +34,12 @@ http
           ["css", "html", "javascript", "title"],
         );
       }
-      const prompt = data.messages.at(-1).content;
+      let prompt = data.messages.at(-1).content;
+      try {
+        prompt = JSON.parse(prompt).requirements ?? prompt;
+      } catch {
+        /* Legacy text input. */
+      }
       if (planning) {
         response.writeHead(200, { "Content-Type": "application/json" }).end(
           JSON.stringify({

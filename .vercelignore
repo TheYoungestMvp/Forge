@@ -7,6 +7,13 @@ node_modules
 .codex
 .impeccable
 tests
+evals
+eval-results
+contracts
+TASK_TOOL_CONTRACT.md
+scripts/export-contracts.ts
+.npm-cache
+scripts/run-evaluation.mjs
 supabase
 *.tsbuildinfo
 *.log

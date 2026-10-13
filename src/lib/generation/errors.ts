@@ -1,8 +1,11 @@
+import type { ToolFailure } from "./tool-failure";
+
 export class GenerationError extends Error {
   constructor(
     public code: string,
     message: string,
     public status = 502,
+    public failure?: ToolFailure,
   ) {
     super(message);
     this.name = "GenerationError";

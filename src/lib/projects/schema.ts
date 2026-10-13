@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AppVersion } from "@/lib/generation/schema";
+import { taskSpecSchema } from "../generation/task";
 
 export const projectSchema = z.object({
   id: z.uuid(),
@@ -24,6 +25,7 @@ export const messageSchema = z.object({
   deadline_at: z.string().nullable().optional(),
   operation: z.enum(["generate", "restore"]).optional(),
   source_version_id: z.uuid().nullable().optional(),
+  task_contract: taskSpecSchema.nullable().optional(),
 });
 
 export const versionSchema = z.object({

@@ -102,6 +102,7 @@ const transientErrors = new Set([
 const replayableRpcs = new Set([
   "forge_load_project",
   "forge_advance_generation",
+  "forge_bind_task_contract",
   "forge_finish_generation",
   "forge_fail_generation",
 ]);

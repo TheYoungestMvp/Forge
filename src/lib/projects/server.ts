@@ -118,6 +118,12 @@ export function databaseError(
       "This request ID was reused for a different operation or prompt.",
       409,
     );
+  if (error?.code === "P0409")
+    return new GenerationError(
+      "REQUEST_ID_CONFLICT",
+      "This request ID is already bound to a different task contract.",
+      409,
+    );
   return new GenerationError(
     "DATABASE_UNAVAILABLE",
     "Project storage is unavailable. Check the Supabase connection and permissions, then retry. Existing saved data is kept.",
@@ -141,7 +147,13 @@ export function assertSameOrigin(request: Request) {
 export function projectErrorResponse(error: unknown) {
   const failure = publicGenerationError(error);
   return Response.json(
-    { error: { code: failure.code, message: failure.message } },
+    {
+      error: {
+        code: failure.code,
+        message: failure.message,
+        ...(failure.failure ? { failure: failure.failure } : {}),
+      },
+    },
     { status: failure.status, headers: { "Cache-Control": "no-store" } },
   );
 }

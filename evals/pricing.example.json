@@ -1,0 +1,7 @@
+{
+  "version": "replace-with-your-price-date-and-source",
+  "currency": "USD",
+  "model": "replace-with-LLM_MODEL",
+  "inputPerMillion": null,
+  "outputPerMillion": null
+}

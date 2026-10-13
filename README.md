@@ -21,8 +21,9 @@ Supabase SQL Editor **依次执行**：
 1. `supabase/migrations/001_persistence.sql`
 2. `supabase/migrations/002_demo_hardening.sql`
 3. `supabase/migrations/003_project_deletion.sql`
+4. `supabase/migrations/004_task_contract.sql`
 
-已有 Phase 4/5 数据库需要第二、三份迁移；已完成 002 的数据库只需执行 003。002 保留数据、增加所有者与工作流状态、替换不安全的执行路径；003 仅安装删除函数，不会删除已有项目。未迁移时 API 明确提示 schema 过旧；不会降级为无权限检查的共享模式。
+已有数据库需要补齐尚未执行的迁移。002增加所有者与工作流状态；003安装删除函数；004增加可空任务契约及受控绑定函数。它们保留已有数据。新生成需要004；未迁移时API在调用模型前提示schema过旧。
 
 旧共享项目保留为 `owner_id=NULL` 的私有遗留数据，不自动分配给首个访客。迁移后请在新匿名会话创建新项目演示。若确需保留自己旧项目的访问，仅由数据库管理员根据明确项目 ID 和当前 `POST /api/session` 的 ID 分配所有者；不能批量开放旧共享数据。
 
@@ -134,6 +135,14 @@ npm start -- --hostname 127.0.0.1 --port 3001
 
 测试不需要真实密钥。PGlite 仅为 dev dependency，执行实际 PostgreSQL 迁移和事务；模型和 HTTP 传输使用受控测试响应。不会调用付费服务或修改用户数据库。
 
+## 固定任务评测
+
+运行 `npm run eval` 可用可信本地样例验证 10 个固定任务的真实浏览器交互，覆盖 Todo、计算器和内容排期看板的连续修改。真实模型基线使用 `npm run eval -- --mode live --repeats 3 --max-calls 90`，会调用当前配置的模型。每轮输出行为通过率、修改回归、耗时、自动修正次数、逐调用 token usage 与版本化单价估算成本；缺费用信息明确记为未知。
+
+评测与线上共用规划、生成和最多一次静态修正规则；修改后复测旧交互。样例成绩仅为框架自检，不能当作模型成功率。任务、指标定义、预算、费用配置与输出格式见 [评测说明](./evals/README.md)。
+
+生成请求支持版本化结构化task，声明目标、字段、保留项及验收动作；服务端绑定所有者、项目、版本和执行权限，固定工具白名单执行，最多3次模型调用、1次修正。统一失败结果明确执行是否开始、结果是否未知和恢复方式。输入、权限、预算、机器可读定义与迁移说明见 [任务与工具契约](./TASK_TOOL_CONTRACT.md)。
+
 ## API 与一致性
 
 - POST `/api/session`：建立 / 复用签名匿名 cookie。
@@ -159,3 +168,7 @@ npm start -- --hostname 127.0.0.1 --port 3001
 ## 设计系统与发布准备
 
 `DESIGN.md` 记录已确认规范，`src/app/design-tokens.css` 提供宿主共享 token。`npm run check:design` 可在干净检出后运行，不依赖本地 Impeccable 引擎。发布验收边界与操作记录见 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)。
+
+## 正式账号与真实业务数据设计
+
+[下一阶段设计](./REAL_DATA_DESIGN.md) 定义正式账号、匿名项目认领、业务记录持久化、受限数据 SDK、权限校验、版本兼容与实施验收。[SDK 契约附件](./designs/runtime-data-v1/README.md) 提供类型与 Todo manifest 草案。这些内容尚未实现或部署，当前预览业务数据仍只在内存中。

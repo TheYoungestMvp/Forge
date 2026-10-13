@@ -28,6 +28,7 @@ async function init() {
     "001_persistence.sql",
     "002_demo_hardening.sql",
     "003_project_deletion.sql",
+    "004_task_contract.sql",
   ])
     await database.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
   return database;
@@ -112,7 +113,7 @@ export async function withDatabase(
       const entries = Object.entries(params);
       const argumentsSql = entries.map(([key], index) => {
         if (!/^p_[a-z_]+$/.test(key)) throw new Error("Invalid test parameter");
-        const type = ["p_app", "p_plan"].includes(key)
+        const type = ["p_app", "p_plan", "p_task_contract"].includes(key)
           ? "jsonb"
           : key.endsWith("_id") || key === "p_run_token"
             ? "uuid"
@@ -126,7 +127,9 @@ export async function withDatabase(
         return `${key}=>$${index + 1}::${type}`;
       });
       const values = entries.map(([key, value]) =>
-        ["p_app", "p_plan"].includes(key) ? JSON.stringify(value) : value,
+        ["p_app", "p_plan", "p_task_contract"].includes(key)
+          ? JSON.stringify(value)
+          : value,
       );
       const query = await db.query<{ value: Record<string, unknown> }>(
         `select public.${name}(${argumentsSql.join(",")}) as value`,

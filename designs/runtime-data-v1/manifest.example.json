@@ -1,0 +1,32 @@
+{
+  "manifestVersion": "1",
+  "sdkVersion": "1",
+  "collections": [
+    {
+      "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "name": "tasks",
+      "schemaRevision": 1,
+      "scope": "project-owner",
+      "operations": ["list", "get", "create", "update", "remove"],
+      "fields": [
+        {
+          "name": "title",
+          "type": "text",
+          "required": true,
+          "minLength": 1,
+          "maxLength": 200,
+          "readable": true,
+          "writable": true
+        },
+        {
+          "name": "done",
+          "type": "boolean",
+          "required": true,
+          "default": false,
+          "readable": true,
+          "writable": true
+        }
+      ]
+    }
+  ]
+}
